@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数独</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh; display: flex; justify-content: center; align-items: center;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #e6f7ff;
+    padding: 64px 12px 24px;
+  }
+  .back-link {
+    position: fixed; top: 18px; left: 18px; z-index: 10; color: #a8d8ea;
+    text-decoration: none; font-size: 14px; padding: 6px 14px;
+    border: 1px solid #2c5364; border-radius: 16px; background: rgba(255,255,255,0.05);
+  }
+  .wrap { width: min(96vw, 520px); text-align: center; }
+  h1 { letter-spacing: 4px; color: #7ce7ff; margin-bottom: 10px; }
+  .bar { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .diffs, .tools { display: flex; gap: 6px; flex-wrap: wrap; }
+  button, .stat {
+    border: 1px solid #2c5364; background: rgba(255,255,255,0.05); color: #e6f7ff;
+    border-radius: 14px; padding: 6px 10px; cursor: pointer; font-size: 14px;
+  }
+  button.active, button.primary { background: #00c9a7; color: #062b26; border-color: #00c9a7; font-weight: bold; }
+  .stat { cursor: default; color: #ffd166; }
+  #grid {
+    width: min(92vw, 468px); margin: 0 auto; aspect-ratio: 1;
+    display: grid; grid-template-columns: repeat(9, 1fr);
+    border: 2px solid #9ad7ff; background: #0a1622; user-select: none;
+  }
+  .cell {
+    border: 1px solid rgba(154, 215, 255, 0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; cursor: pointer; position: relative;
+  }
+  .cell.b-r { border-right: 2px solid #9ad7ff; }
+  .cell.b-b { border-bottom: 2px solid #9ad7ff; }
+  .cell.given { color: #9ad7ff; }
+  .cell.user { color: #fff; }
+  .cell.sel { background: rgba(0, 201, 167, 0.35); }
+  .cell.same { background: rgba(255, 209, 102, 0.16); }
+  .cell.bad { color: #ff6b6b; }
+  .notes {
+    display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; height: 100%;
+    font-size: 9px; font-weight: 600; color: #c9e7f5; padding: 2px;
+  }
+  .notes i { font-style: normal; display: flex; align-items: center; justify-content: center; }
+  .pad { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; margin-top: 12px; }
+  .pad button { padding: 10px 0; font-size: 18px; font-weight: bold; }
+  .msg { min-height: 22px; margin-top: 8px; color: #a8d8ea; font-size: 14px; }
+  @media (max-width: 480px) { .cell { font-size: 16px; } .notes { font-size: 8px; } }
+</style>
+</head>
+<body>
+  <a class="back-link" href="../../index.html">← 返回游戏列表</a>
+  <div class="wrap">
+    <h1>数独</h1>
+    <div class="bar">
+      <div class="diffs" id="diffs">
+        <button type="button" data-d="easy">简单</button>
+        <button type="button" data-d="medium" class="active">普通</button>
+        <button type="button" data-d="hard">困难</button>
+      </div>
+      <div class="tools">
+        <span class="stat" id="timer">00:00</span>
+        <button type="button" id="noteBtn">笔记</button>
+        <button type="button" id="hintBtn">提示</button>
+        <button type="button" id="checkBtn">检查</button>
+        <button type="button" class="primary" id="newBtn">新局</button>
+      </div>
+    </div>
+    <div id="grid"></div>
+    <div class="pad" id="pad"></div>
+    <div class="msg" id="msg">每行、每列、每宫填入 1–9，不能重复。</div>
+  </div>
+<script>
+(function () {
+  const CLUES = { easy: 40, medium: 32, hard: 26 };
+  let puzzle, solution, values, notes, given, sel, noteMode, diff, timer, seconds, started;
+
+  function clone(b) { return b.map(r => r.slice()); }
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function candidates(board, r, c) {
+    const used = new Set();
+    for (let i = 0; i < 9; i++) { used.add(board[r][i]); used.add(board[i][c]); }
+    const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) used.add(board[br + i][bc + j]);
+    const out = [];
+    for (let n = 1; n <= 9; n++) if (!used.has(n)) out.push(n);
+    return out;
+  }
+  function findMRV(board) {
+    let best = null, cs = null;
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (!board[r][c]) {
+      const list = candidates(board, r, c);
+      if (!best || list.length < cs.length) { best = [r, c]; cs = list; if (!list.length) return [best, cs]; }
+    }
+    return [best, cs];
+  }
+  function fill(board) {
+    const [cell, cs] = findMRV(board);
+    if (!cell) return true;
+    if (!cs.length) return false;
+    shuffle(cs);
+    const [r, c] = cell;
+    for (const n of cs) {
+      board[r][c] = n;
+      if (fill(board)) return true;
+      board[r][c] = 0;
+    }
+    return false;
+  }
+  function countSolutions(board, limit) {
+    const [cell, cs] = findMRV(board);
+    if (!cell) return 1;
+    if (!cs.length) return 0;
+    const [r, c] = cell;
+    let n = 0;
+    for (const v of cs) {
+      board[r][c] = v;
+      n += countSolutions(board, limit);
+      board[r][c] = 0;
+      if (n >= limit) return n;
+    }
+    return n;
+  }
+  function makePuzzle(targetClues) {
+    const solved = Array.from({ length: 9 }, () => Array(9).fill(0));
+    fill(solved);
+    const board = clone(solved);
+    const order = shuffle([...Array(81).keys()]);
+    let clues = 81;
+    for (const idx of order) {
+      if (clues <= targetClues) break;
+      const r = Math.floor(idx / 9), c = idx % 9;
+      const bak = board[r][c];
+      if (!bak) continue;
+      board[r][c] = 0;
+      if (countSolutions(board, 2) !== 1) board[r][c] = bak;
+      else clues--;
+    }
+    return { puzzle: board, solution: solved };
+  }
+
+  if (typeof document === 'undefined') {
+    globalThis.__sudoku = { makePuzzle };
+    return;
+  }
+
+  function conflicts(r, c) {
+    const v = values[r][c];
+    if (!v) return false;
+    for (let i = 0; i < 9; i++) {
+      if (i !== c && values[r][i] === v) return true;
+      if (i !== r && values[i][c] === v) return true;
+    }
+    const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+      const rr = br + i, cc = bc + j;
+      if ((rr !== r || cc !== c) && values[rr][cc] === v) return true;
+    }
+    return false;
+  }
+
+  function render() {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    const focusVal = sel ? values[sel[0]][sel[1]] : 0;
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+      const el = document.createElement('div');
+      el.className = 'cell' + (c % 3 === 2 && c !== 8 ? ' b-r' : '') + (r % 3 === 2 && r !== 8 ? ' b-b' : '');
+      if (sel && sel[0] === r && sel[1] === c) el.classList.add('sel');
+      else if (focusVal && values[r][c] === focusVal) el.classList.add('same');
+      if (given[r][c]) el.classList.add('given');
+      else if (values[r][c]) el.classList.add('user');
+      if (conflicts(r, c)) el.classList.add('bad');
+      if (values[r][c]) el.textContent = values[r][c];
+      else if (notes[r][c].some(Boolean)) {
+        const n = document.createElement('div');
+        n.className = 'notes';
+        for (let k = 1; k <= 9; k++) {
+          const i = document.createElement('i');
+          i.textContent = notes[r][c][k] ? k : '';
+          n.appendChild(i);
+        }
+        el.appendChild(n);
+      }
+      el.onclick = () => { sel = [r, c]; render(); };
+      grid.appendChild(el);
+    }
+  }
+
+  function tick() {
+    const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    document.getElementById('timer').textContent = m + ':' + s;
+  }
+  function ensureTimer() {
+    if (started) return;
+    started = true;
+    timer = setInterval(() => { seconds++; tick(); }, 1000);
+  }
+  function filled() {
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (!values[r][c]) return false;
+    return true;
+  }
+  function correct() {
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (values[r][c] !== solution[r][c]) return false;
+    return true;
+  }
+  function setMsg(t) { document.getElementById('msg').textContent = t; }
+
+  function input(n) {
+    if (!sel) { setMsg('先点一个格子。'); return; }
+    const [r, c] = sel;
+    if (given[r][c]) return;
+    ensureTimer();
+    if (noteMode && n) {
+      notes[r][c][n] = notes[r][c][n] ? 0 : n;
+      values[r][c] = 0;
+    } else if (n) {
+      values[r][c] = n;
+      notes[r][c] = Array(10).fill(0);
+    } else {
+      values[r][c] = 0;
+    }
+    render();
+    if (filled() && correct()) {
+      clearInterval(timer);
+      setMsg('完成，用时 ' + document.getElementById('timer').textContent + '。');
+    } else setMsg(noteMode ? '笔记模式：数字只作标记，不计入答案。' : '每行、每列、每宫填入 1–9，不能重复。');
+  }
+
+  function newGame() {
+    clearInterval(timer);
+    seconds = 0; started = false; tick(); sel = null; noteMode = false;
+    document.getElementById('noteBtn').classList.remove('active');
+    setMsg('正在出题…');
+    document.getElementById('grid').innerHTML = '';
+    setTimeout(() => {
+      const made = makePuzzle(CLUES[diff]);
+      puzzle = made.puzzle;
+      solution = made.solution;
+      values = clone(puzzle);
+      given = puzzle.map(row => row.map(v => v !== 0));
+      notes = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => Array(10).fill(0)));
+      setMsg('每行、每列、每宫填入 1–9，不能重复。');
+      render();
+    }, 30);
+  }
+
+  document.getElementById('diffs').onclick = (e) => {
+    const d = e.target.dataset.d;
+    if (!d) return;
+    diff = d;
+    [...e.currentTarget.children].forEach(b => b.classList.toggle('active', b.dataset.d === d));
+    newGame();
+  };
+  document.getElementById('newBtn').onclick = newGame;
+  document.getElementById('noteBtn').onclick = (e) => {
+    noteMode = !noteMode;
+    e.target.classList.toggle('active', noteMode);
+    setMsg(noteMode ? '笔记模式：数字只作标记，不计入答案。' : '已关闭笔记。');
+  };
+  document.getElementById('hintBtn').onclick = () => {
+    const spots = [];
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (!values[r][c]) spots.push([r, c]);
+    if (!spots.length) return;
+    ensureTimer();
+    const [r, c] = spots[Math.floor(Math.random() * spots.length)];
+    values[r][c] = solution[r][c];
+    notes[r][c] = Array(10).fill(0);
+    sel = [r, c];
+    render();
+    if (filled() && correct()) { clearInterval(timer); setMsg('完成，用时 ' + document.getElementById('timer').textContent + '。'); }
+  };
+  document.getElementById('checkBtn').onclick = () => {
+    if (!values) return;
+    if (correct() && filled()) { clearInterval(timer); setMsg('没有错误，数独已完成。'); return; }
+    let wrong = 0, empty = 0;
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+      if (!values[r][c]) empty++;
+      else if (values[r][c] !== solution[r][c]) wrong++;
+    }
+    setMsg(wrong ? ('有 ' + wrong + ' 个数字不对。') : ('已填的都对，还空 ' + empty + ' 格。'));
+    render();
+  };
+
+  const pad = document.getElementById('pad');
+  for (let n = 1; n <= 9; n++) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = n;
+    b.onclick = () => input(n);
+    pad.appendChild(b);
+  }
+  const erase = document.createElement('button');
+  erase.type = 'button'; erase.textContent = '擦除'; erase.style.gridColumn = 'span 9';
+  erase.onclick = () => input(0);
+  pad.appendChild(erase);
+
+  document.addEventListener('keydown', (e) => {
+    if (!sel) return;
+    if (e.key >= '1' && e.key <= '9') input(Number(e.key));
+    if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') input(0);
+    const [r, c] = sel;
+    const move = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key];
+    if (move) {
+      e.preventDefault();
+      sel = [Math.max(0, Math.min(8, r + move[0])), Math.max(0, Math.min(8, c + move[1]))];
+      render();
+    }
+  });
+
+  diff = 'medium';
+  newGame();
+})();
+</script>
+</body>
+</html>

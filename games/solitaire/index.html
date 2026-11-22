@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>纸牌</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --cw: 86px; --ch: 120px; --gap: 12px; }
+  body {
+    min-height: 100vh; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #e6f7ff;
+    padding: 64px 12px 28px;
+  }
+  .back-link {
+    position: fixed; top: 18px; left: 18px; z-index: 10; color: #a8d8ea;
+    text-decoration: none; font-size: 14px; padding: 6px 14px;
+    border: 1px solid #2c5364; border-radius: 16px; background: rgba(255,255,255,0.05);
+  }
+  h1 { text-align: center; letter-spacing: 4px; color: #7ce7ff; margin-bottom: 10px; }
+  .bar { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  button {
+    border: 1px solid #2c5364; background: rgba(255,255,255,.06); color: #e6f7ff;
+    border-radius: 14px; padding: 6px 12px; cursor: pointer;
+  }
+  button.primary, button.active { background: #00c9a7; color: #062b26; border-color: #00c9a7; font-weight: bold; }
+  .stat { color: #ffd166; font-weight: bold; }
+  .table {
+    width: max-content; max-width: 100%; margin: 0 auto; background: #0c6b45;
+    border-radius: 12px; padding: 14px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.08);
+    overflow-x: auto;
+  }
+  .top, .tableau { display: flex; gap: var(--gap); }
+  .tableau { margin-top: 16px; align-items: flex-start; }
+  .pile, .col { width: var(--cw); position: relative; min-height: var(--ch); }
+  .col { min-height: 280px; }
+  .slot {
+    width: var(--cw); height: var(--ch); border-radius: 8px;
+    border: 2px dashed rgba(255,255,255,.35); box-sizing: border-box;
+  }
+  .card {
+    width: var(--cw); height: var(--ch); border-radius: 8px; position: absolute; left: 0;
+    background: #fff; color: #222; box-shadow: 0 2px 6px rgba(0,0,0,.28);
+    user-select: none; touch-action: none; cursor: pointer;
+  }
+  .card.back {
+    background:
+      radial-gradient(circle at 30% 30%, #3d7ea6 0 18%, transparent 19%),
+      radial-gradient(circle at 70% 60%, #3d7ea6 0 18%, transparent 19%),
+      linear-gradient(160deg, #1b4f73, #16324a);
+    border: 2px solid #d7eef8;
+  }
+  .card .corner { position: absolute; font-weight: 800; font-size: 14px; line-height: 1.05; }
+  .card .tl { top: 6px; left: 6px; }
+  .card .br { bottom: 6px; right: 6px; transform: rotate(180deg); }
+  .card .pip { position: absolute; left: 0; right: 0; top: 38px; text-align: center; font-size: 28px; }
+  .card.red { color: #c0392b; }
+  .card.sel { outline: 3px solid #ffd166; }
+  .card.float { position: relative; margin-bottom: -96px; }
+  #float { position: fixed; z-index: 30; pointer-events: none; }
+  .hint { text-align: center; margin-top: 12px; color: #a8d8ea; font-size: 14px; }
+  #msg { text-align: center; min-height: 22px; margin-top: 6px; color: #ffd166; }
+  @media (max-width: 720px) {
+    :root { --cw: 64px; --ch: 92px; --gap: 8px; }
+    .card .pip { font-size: 20px; top: 30px; }
+    .card .corner { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+  <a class="back-link" href="../../index.html">← 返回游戏列表</a>
+  <h1>纸牌</h1>
+  <div class="bar">
+    <button type="button" id="draw1" class="active">翻 1 张</button>
+    <button type="button" id="draw3">翻 3 张</button>
+    <button type="button" class="primary" id="newBtn">新牌局</button>
+    <button type="button" id="undoBtn">撤销</button>
+    <span class="stat" id="score">0 分</span>
+    <span class="stat" id="time">00:00</span>
+    <span class="stat" id="moves">0 步</span>
+  </div>
+  <div class="table" id="table"></div>
+  <div id="msg"></div>
+  <div class="hint">克朗代克：黑红交替、从大到小接在下面。A 起按花色收到右上角。双击一张牌可以自动收上去。拖动或点击都能移动。</div>
+<script>
+(function () {
+  const SUITS = ['♠', '♥', '♣', '♦'];
+  const RANK = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  let drawN = 1, stock, waste, found, tab, sel, score, moves, seconds, timer, started, history, won;
+  let drag = null;
+
+  function red(card) { return card.suit % 2 === 1; }
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function deal() {
+    const deck = [];
+    for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) deck.push({ suit: s, rank: r, up: false });
+    shuffle(deck);
+    tab = Array.from({ length: 7 }, () => []);
+    for (let c = 0; c < 7; c++) for (let i = 0; i <= c; i++) {
+      const card = deck.pop();
+      card.up = i === c;
+      tab[c].push(card);
+    }
+    stock = deck; waste = []; found = [[], [], [], []];
+    sel = null; score = 0; moves = 0; seconds = 0; started = false; history = []; won = false;
+    clearInterval(timer);
+    paint();
+  }
+  function tick() {
+    const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    document.getElementById('time').textContent = m + ':' + s;
+  }
+  function begin() {
+    if (started) return;
+    started = true;
+    timer = setInterval(() => { seconds++; tick(); }, 1000);
+  }
+  function snap() {
+    history.push(JSON.stringify({ stock, waste, found, tab, score, moves }));
+    if (history.length > 300) history.shift();
+  }
+  function undo() {
+    const raw = history.pop();
+    if (!raw || won) return;
+    const data = JSON.parse(raw);
+    stock = data.stock; waste = data.waste; found = data.found; tab = data.tab;
+    score = data.score; moves = data.moves; sel = null;
+    paint();
+  }
+  function stackOf(src) {
+    if (!src) return null;
+    if (src.zone === 'waste') return waste.length ? [waste[waste.length - 1]] : null;
+    if (src.zone === 'found') return found[src.col].length ? [found[src.col][found[src.col].length - 1]] : null;
+    const col = tab[src.col];
+    if (src.index < 0 || src.index >= col.length) return null;
+    const cards = col.slice(src.index);
+    if (cards.some(c => !c.up)) return null;
+    for (let i = 0; i < cards.length - 1; i++) {
+      if (red(cards[i]) === red(cards[i + 1]) || cards[i].rank !== cards[i + 1].rank + 1) return null;
+    }
+    return cards;
+  }
+  function canDrop(cards, dest) {
+    if (!cards) return false;
+    if (dest.zone === 'found') {
+      if (cards.length !== 1) return false;
+      const pile = found[dest.col];
+      const card = cards[0];
+      if (!pile.length) return card.rank === 1;
+      const top = pile[pile.length - 1];
+      return top.suit === card.suit && top.rank + 1 === card.rank;
+    }
+    const col = tab[dest.col];
+    if (!col.length) return cards[0].rank === 13;
+    const top = col[col.length - 1];
+    return red(top) !== red(cards[0]) && top.rank === cards[0].rank + 1;
+  }
+  function take(src) {
+    if (src.zone === 'waste') return [waste.pop()];
+    if (src.zone === 'found') return [found[src.col].pop()];
+    return tab[src.col].splice(src.index);
+  }
+  function doMove(src, dest) {
+    const cards = stackOf(src);
+    if (!canDrop(cards, dest)) return false;
+    if (src.zone === 'tab' && dest.zone === 'tab' && src.col === dest.col) return false;
+    snap();
+    begin();
+    const moving = take(src);
+    if (dest.zone === 'found') {
+      found[dest.col].push(moving[0]);
+      score += src.zone === 'found' ? 0 : 10;
+    } else {
+      if (src.zone === 'found') score -= 15;
+      else if (src.zone === 'waste') score += 5;
+      tab[dest.col].push(...moving);
+    }
+    if (src.zone === 'tab' && tab[src.col].length && !tab[src.col][tab[src.col].length - 1].up) {
+      tab[src.col][tab[src.col].length - 1].up = true;
+      score += 5;
+    }
+    if (score < 0) score = 0;
+    moves++;
+    sel = null;
+    checkWin();
+    return true;
+  }
+  function autoToFound(src) {
+    const cards = stackOf(src);
+    if (!cards || cards.length !== 1) return false;
+    for (let i = 0; i < 4; i++) if (canDrop(cards, { zone: 'found', col: i })) return doMove(src, { zone: 'found', col: i });
+    return false;
+  }
+  function checkWin() {
+    if (found.every(p => p.length === 13)) {
+      won = true;
+      clearInterval(timer);
+      document.getElementById('msg').textContent = '收齐了，用时 ' + document.getElementById('time').textContent;
+    } else document.getElementById('msg').textContent = '';
+  }
+  function draw() {
+    if (won) return;
+    snap();
+    begin();
+    if (stock.length) {
+      const n = Math.min(drawN, stock.length);
+      for (let i = 0; i < n; i++) {
+        const card = stock.pop();
+        card.up = true;
+        waste.push(card);
+      }
+    } else if (waste.length) {
+      while (waste.length) {
+        const card = waste.pop();
+        card.up = false;
+        stock.push(card);
+      }
+      if (drawN === 3) score = Math.max(0, score - 15);
+    } else { history.pop(); return; }
+    moves++;
+    sel = null;
+  }
+  function same(a, b) {
+    if (!a || !b || a.zone !== b.zone) return false;
+    if (a.zone === 'waste') return true;
+    if (a.zone === 'found') return a.col === b.col;
+    return a.col === b.col && a.index === b.index;
+  }
+  function cardNode(card, top, extra) {
+    const el = document.createElement('div');
+    el.className = 'card ' + (card.up ? (red(card) ? 'red' : 'black') : 'back') + (extra || '');
+    el.style.top = top + 'px';
+    if (card.up) {
+      const label = RANK[card.rank] + SUITS[card.suit];
+      el.innerHTML = '<div class="corner tl">' + label + '</div><div class="pip">' + SUITS[card.suit] + '</div><div class="corner br">' + label + '</div>';
+    }
+    return el;
+  }
+  function paint() {
+    const table = document.getElementById('table');
+    table.innerHTML = '';
+    const top = document.createElement('div');
+    top.className = 'top';
+    const stockPile = document.createElement('div');
+    stockPile.className = 'pile';
+    if (stock.length) {
+      const back = cardNode({ up: false }, 0);
+      back.onclick = () => { draw(); paint(); };
+      stockPile.appendChild(back);
+    } else {
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.onclick = () => { draw(); paint(); };
+      stockPile.appendChild(slot);
+    }
+    top.appendChild(stockPile);
+    const wastePile = document.createElement('div');
+    wastePile.className = 'pile';
+    wastePile.style.width = 'calc(var(--cw) + 36px)';
+    const show = waste.slice(-Math.min(drawN, 3));
+    show.forEach((card, i) => {
+      const el = cardNode(card, 0);
+      el.style.left = (i * 16) + 'px';
+      const src = { zone: 'waste' };
+      if (i === show.length - 1) bindCard(el, src);
+      wastePile.appendChild(el);
+    });
+    if (!show.length) wastePile.appendChild(Object.assign(document.createElement('div'), { className: 'slot' }));
+    top.appendChild(wastePile);
+    const spacer = document.createElement('div');
+    spacer.style.flex = '1';
+    top.appendChild(spacer);
+    found.forEach((pile, i) => {
+      const box = document.createElement('div');
+      box.className = 'pile';
+      box.dataset.dest = JSON.stringify({ zone: 'found', col: i });
+      if (!pile.length) {
+        const slot = document.createElement('div');
+        slot.className = 'slot';
+        slot.onclick = () => clickDest({ zone: 'found', col: i });
+        box.appendChild(slot);
+      } else {
+        const el = cardNode(pile[pile.length - 1], 0, sel && sel.zone === 'found' && sel.col === i ? ' sel' : '');
+        bindCard(el, { zone: 'found', col: i });
+        box.appendChild(el);
+      }
+      top.appendChild(box);
+    });
+    const bottom = document.createElement('div');
+    bottom.className = 'tableau';
+    tab.forEach((col, ci) => {
+      const box = document.createElement('div');
+      box.className = 'col';
+      box.dataset.dest = JSON.stringify({ zone: 'tab', col: ci });
+      let y = 0;
+      if (!col.length) {
+        const slot = document.createElement('div');
+        slot.className = 'slot';
+        slot.onclick = () => clickDest({ zone: 'tab', col: ci });
+        box.appendChild(slot);
+      }
+      col.forEach((card, idx) => {
+        const el = cardNode(card, y, sel && sel.zone === 'tab' && sel.col === ci && idx >= sel.index ? ' sel' : '');
+        if (card.up) bindCard(el, { zone: 'tab', col: ci, index: idx });
+        box.appendChild(el);
+        y += card.up ? 24 : 12;
+      });
+      bottom.appendChild(box);
+    });
+    table.appendChild(top);
+    table.appendChild(bottom);
+    document.getElementById('score').textContent = score + ' 分';
+    document.getElementById('moves').textContent = moves + ' 步';
+    tick();
+  }
+  function clickDest(dest) {
+    if (won) return;
+    if (sel && doMove(sel, dest)) paint();
+  }
+  function activate(src) {
+    if (won) return;
+    if (sel && same(sel, src)) {
+      if (autoToFound(src)) paint();
+      else { sel = null; paint(); }
+      return;
+    }
+    if (sel) {
+      const dest = src.zone === 'tab' ? { zone: 'tab', col: src.col } : src.zone === 'found' ? { zone: 'found', col: src.col } : null;
+      if (dest && doMove(sel, dest)) { paint(); return; }
+    }
+    sel = stackOf(src) ? src : null;
+    paint();
+  }
+  function bindCard(el, src) {
+    el.addEventListener('pointerdown', (e) => {
+      if (won || !stackOf(src)) return;
+      drag = { src, x: e.clientX, y: e.clientY, moved: false, pid: e.pointerId };
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!drag || drag.pid !== e.pointerId) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6) {
+        drag.moved = true;
+        const cards = stackOf(drag.src);
+        const float = document.createElement('div');
+        float.id = 'float';
+        cards.forEach((card, i) => {
+          const node = cardNode(card, 0);
+          node.style.position = 'relative';
+          node.style.top = '0';
+          node.style.marginTop = i ? '-96px' : '0';
+          float.appendChild(node);
+        });
+        document.body.appendChild(float);
+      }
+      const float = document.getElementById('float');
+      if (float) {
+        float.style.left = (e.clientX - 30) + 'px';
+        float.style.top = (e.clientY - 20) + 'px';
+      }
+    });
+    el.addEventListener('pointerup', (e) => {
+      if (!drag || drag.pid !== e.pointerId) return;
+      const moved = drag.moved;
+      const src = drag.src;
+      const float = document.getElementById('float');
+      if (float) float.remove();
+      drag = null;
+      if (!moved) { activate(src); return; }
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      const host = under && under.closest('[data-dest]');
+      if (host) doMove(src, JSON.parse(host.dataset.dest));
+      paint();
+    });
+  }
+
+  document.getElementById('newBtn').onclick = deal;
+  document.getElementById('undoBtn').onclick = undo;
+  document.getElementById('draw1').onclick = () => { drawN = 1; document.getElementById('draw1').classList.add('active'); document.getElementById('draw3').classList.remove('active'); deal(); };
+  document.getElementById('draw3').onclick = () => { drawN = 3; document.getElementById('draw3').classList.add('active'); document.getElementById('draw1').classList.remove('active'); deal(); };
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'z' || e.key === 'Z') undo();
+    if (e.key === 'n' || e.key === 'N') deal();
+  });
+  deal();
+})();
+</script>
+</body>
+</html>

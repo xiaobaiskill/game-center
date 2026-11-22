@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中国象棋</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh; display: flex; justify-content: center; align-items: center;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #e6f7ff;
+    padding: 70px 12px 24px;
+  }
+  .back-link {
+    position: fixed; top: 18px; left: 18px; z-index: 10; color: #a8d8ea;
+    text-decoration: none; font-size: 14px; padding: 6px 14px;
+    border: 1px solid #2c5364; border-radius: 16px; background: rgba(255,255,255,0.05);
+  }
+  h1 { letter-spacing: 4px; color: #7ce7ff; margin-bottom: 8px; text-align: center; }
+  .layout { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  canvas { width: min(92vw, 440px); height: auto; border-radius: 8px; background: #e7c48a; touch-action: manipulation; cursor: pointer; }
+  .side { width: min(92vw, 240px); }
+  .status { min-height: 48px; font-size: 18px; color: #ffd166; margin-bottom: 10px; }
+  .modes, .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  button {
+    border: 1px solid #2c5364; background: rgba(255,255,255,.06); color: #e6f7ff;
+    border-radius: 14px; padding: 6px 12px; cursor: pointer;
+  }
+  button.active, button.primary { background: #00c9a7; color: #062b26; border-color: #00c9a7; font-weight: bold; }
+  #log { max-height: 260px; overflow: auto; font-size: 14px; line-height: 1.7; }
+  .hint { margin-top: 8px; color: #a8d8ea; font-size: 13px; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <a class="back-link" href="../../index.html">← 返回游戏列表</a>
+  <div>
+    <h1>中国象棋</h1>
+    <div class="layout">
+      <canvas id="board" width="440" height="488"></canvas>
+      <div class="side">
+        <div class="status" id="status">红方行棋</div>
+        <div class="modes">
+          <button type="button" id="aiBtn" class="active">人机</button>
+          <button type="button" id="pvpBtn">双人</button>
+        </div>
+        <div class="actions">
+          <button type="button" class="primary" id="newBtn">新局</button>
+          <button type="button" id="undoBtn">悔棋</button>
+        </div>
+        <div id="log"></div>
+        <div class="hint">红方在下。马别腿、象别眼、炮打隔山。不能送将，将帅不可照面。无子可走判负。同一局面三次作和。</div>
+      </div>
+    </div>
+  </div>
+<script>
+(function () {
+  const CELL = 48, PAD = 28;
+  const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const HORSE = [[2, 1], [2, -1], [-2, 1], [-2, -1], [1, 2], [1, -2], [-1, 2], [-1, -2]];
+  const NAME = {
+    r: { K: '帅', A: '仕', B: '相', N: '马', R: '车', C: '炮', P: '兵' },
+    b: { K: '将', A: '士', B: '象', N: '马', R: '车', C: '炮', P: '卒' }
+  };
+  const VAL = { K: 0, R: 900, C: 450, N: 420, B: 180, A: 180, P: 80 };
+
+  function on(r, c) { return r >= 0 && r < 10 && c >= 0 && c < 9; }
+  function clone(b) { return b.map(row => row.map(p => (p ? { c: p.c, t: p.t } : null))); }
+  function initial() {
+    const b = Array.from({ length: 10 }, () => Array(9).fill(null));
+    ['R', 'N', 'B', 'A', 'K', 'A', 'B', 'N', 'R'].forEach((t, c) => {
+      b[0][c] = { c: 'b', t }; b[9][c] = { c: 'r', t };
+    });
+    b[2][1] = { c: 'b', t: 'C' }; b[2][7] = { c: 'b', t: 'C' };
+    b[7][1] = { c: 'r', t: 'C' }; b[7][7] = { c: 'r', t: 'C' };
+    [0, 2, 4, 6, 8].forEach(c => { b[3][c] = { c: 'b', t: 'P' }; b[6][c] = { c: 'r', t: 'P' }; });
+    return { board: b, turn: 'r' };
+  }
+  function inPalace(r, c, color) {
+    if (c < 3 || c > 5) return false;
+    return color === 'r' ? r >= 7 && r <= 9 : r >= 0 && r <= 2;
+  }
+  function findKing(board, color) {
+    for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
+      const p = board[r][c];
+      if (p && p.c === color && p.t === 'K') return { r, c };
+    }
+    return null;
+  }
+  function facing(board) {
+    const red = findKing(board, 'r'), black = findKing(board, 'b');
+    if (!red || !black || red.c !== black.c) return false;
+    const a = Math.min(red.r, black.r), b = Math.max(red.r, black.r);
+    for (let r = a + 1; r < b; r++) if (board[r][red.c]) return false;
+    return true;
+  }
+  function pseudo(board, color) {
+    const moves = [];
+    const push = (fr, fc, tr, tc) => {
+      if (!on(tr, tc)) return;
+      const t = board[tr][tc];
+      if (t && t.c === color) return;
+      moves.push({ fr, fc, tr, tc });
+    };
+    for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
+      const p = board[r][c];
+      if (!p || p.c !== color) continue;
+      if (p.t === 'K') ORTHO.forEach(([dr, dc]) => { const rr = r + dr, cc = c + dc; if (inPalace(rr, cc, color)) push(r, c, rr, cc); });
+      if (p.t === 'A') [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([dr, dc]) => { const rr = r + dr, cc = c + dc; if (inPalace(rr, cc, color)) push(r, c, rr, cc); });
+      if (p.t === 'B') [[2, 2], [2, -2], [-2, 2], [-2, -2]].forEach(([dr, dc]) => {
+        const rr = r + dr, cc = c + dc;
+        const er = r + dr / 2, ec = c + dc / 2;
+        if (!on(rr, cc) || !on(er, ec) || board[er][ec]) return;
+        if (color === 'r' && rr < 5) return;
+        if (color === 'b' && rr > 4) return;
+        push(r, c, rr, cc);
+      });
+      if (p.t === 'N') HORSE.forEach(([dr, dc]) => {
+        const lr = r + (Math.abs(dr) === 2 ? Math.sign(dr) : 0);
+        const lc = c + (Math.abs(dc) === 2 ? Math.sign(dc) : 0);
+        if (!on(lr, lc) || board[lr][lc]) return;
+        push(r, c, r + dr, c + dc);
+      });
+      if (p.t === 'R' || p.t === 'C') ORTHO.forEach(([dr, dc]) => {
+        let rr = r + dr, cc = c + dc, jumped = false;
+        while (on(rr, cc)) {
+          const t = board[rr][cc];
+          if (p.t === 'R') {
+            if (!t) moves.push({ fr: r, fc: c, tr: rr, tc: cc });
+            else { if (t.c !== color) moves.push({ fr: r, fc: c, tr: rr, tc: cc }); break; }
+          } else if (!jumped) {
+            if (!t) moves.push({ fr: r, fc: c, tr: rr, tc: cc });
+            else jumped = true;
+          } else if (t) {
+            if (t.c !== color) moves.push({ fr: r, fc: c, tr: rr, tc: cc });
+            break;
+          }
+          rr += dr; cc += dc;
+        }
+      });
+      if (p.t === 'P') {
+        const fw = color === 'r' ? -1 : 1;
+        push(r, c, r + fw, c);
+        const crossed = color === 'r' ? r <= 4 : r >= 5;
+        if (crossed) { push(r, c, r, c - 1); push(r, c, r, c + 1); }
+      }
+    }
+    return moves;
+  }
+  function apply(state, m) {
+    const board = clone(state.board);
+    board[m.tr][m.tc] = board[m.fr][m.fc];
+    board[m.fr][m.fc] = null;
+    return { board, turn: state.turn === 'r' ? 'b' : 'r' };
+  }
+  function attacked(board, r, c, by) {
+    return pseudo(board, by).some(m => m.tr === r && m.tc === c);
+  }
+  function inCheck(board, color) {
+    if (facing(board)) return true;
+    const k = findKing(board, color);
+    if (!k) return true;
+    return attacked(board, k.r, k.c, color === 'r' ? 'b' : 'r');
+  }
+  function legal(state) {
+    return pseudo(state.board, state.turn).filter(m => !inCheck(apply(state, m).board, state.turn));
+  }
+  function value(p, r, c) {
+    let extra = 0;
+    if (p.t === 'P') {
+      if (p.c === 'r' ? r <= 4 : r >= 5) extra += 60;
+      if (c >= 3 && c <= 5) extra += 8;
+    }
+    if (p.t === 'N' || p.t === 'C') extra += (4 - Math.abs(4 - c)) * 6;
+    return VAL[p.t] + extra;
+  }
+  function evaluate(state) {
+    let s = 0;
+    for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
+      const p = state.board[r][c];
+      if (p) s += (p.c === 'r' ? 1 : -1) * value(p, r, c);
+    }
+    return state.turn === 'r' ? s : -s;
+  }
+  function order(state, moves) {
+    return moves.slice().sort((a, b) => {
+      const va = state.board[a.tr][a.tc], vb = state.board[b.tr][b.tc];
+      return (vb ? VAL[vb.t] : 0) - (va ? VAL[va.t] : 0);
+    });
+  }
+  function negamax(state, depth, alpha, beta, ply, deadline) {
+    if (Date.now() > deadline) return 0;
+    if (depth === 0) return evaluate(state);
+    const moves = order(state, legal(state));
+    if (!moves.length) return -100000 + ply;
+    let best = -Infinity;
+    for (const m of moves) {
+      const score = -negamax(apply(state, m), depth - 1, -beta, -alpha, ply + 1, deadline);
+      if (score > best) best = score;
+      if (score > alpha) alpha = score;
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+  function choose(state) {
+    const deadline = Date.now() + 380;
+    let best = legal(state)[0] || null;
+    for (let d = 1; d <= 2; d++) {
+      const moves = order(state, legal(state));
+      let cur = null, bestScore = -Infinity, alpha = -Infinity, done = true;
+      for (const m of moves) {
+        if (Date.now() > deadline) { done = false; break; }
+        const score = -negamax(apply(state, m), d - 1, -Infinity, -alpha, 1, deadline);
+        if (Date.now() > deadline) { done = false; break; }
+        if (score > bestScore) { bestScore = score; cur = m; }
+        if (score > alpha) alpha = score;
+      }
+      if (done && cur) best = cur; else break;
+    }
+    return best;
+  }
+  function posKey(state) {
+    let s = state.turn;
+    for (const row of state.board) for (const p of row) s += p ? p.c + p.t : '.';
+    return s;
+  }
+  function describe(state, m) {
+    const p = state.board[m.fr][m.fc];
+    const cap = state.board[m.tr][m.tc];
+    const who = (p.c === 'r' ? '红' : '黑') + NAME[p.c][p.t];
+    const at = (m.fc + 1) + '路' + (10 - m.fr);
+    const to = (m.tc + 1) + '路' + (10 - m.tr);
+    return who + ' ' + at + (cap ? ' 吃' + NAME[cap.c][cap.t] + ' ' : ' → ') + to;
+  }
+
+  if (typeof document === 'undefined') {
+    globalThis.__xiangqi = { initial, legal, apply, pseudo, inCheck, facing, attacked, posKey };
+    return;
+  }
+
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const statusEl = document.getElementById('status');
+  const logEl = document.getElementById('log');
+  let mode = 'ai', state, history, log, sel, last, over, result, thinking, thinkToken = 0;
+
+  function start() {
+    state = initial(); history = []; log = []; sel = null; last = null; over = false; result = '';
+    thinking = false; thinkToken++;
+    draw();
+  }
+  function repeats() {
+    const k = posKey(state);
+    return 1 + history.filter(h => posKey(h) === k).length;
+  }
+  function finishIfEnded() {
+    if (!legal(state).length) {
+      over = true;
+      const loser = state.turn === 'r' ? '红方' : '黑方';
+      const how = inCheck(state.board, state.turn) ? '被将死' : '困毙';
+      result = loser + how + '，' + (state.turn === 'r' ? '黑方' : '红方') + '胜';
+      return;
+    }
+    if (repeats() >= 3) { over = true; result = '三次重复，和棋'; }
+  }
+  function play(move) {
+    if (over || thinking) return;
+    history.push(state);
+    log.push(describe(state, move));
+    state = apply(state, move);
+    last = move; sel = null;
+    finishIfEnded();
+    draw();
+    if (!over && mode === 'ai' && state.turn === 'b') think();
+  }
+  function think() {
+    const token = ++thinkToken;
+    thinking = true;
+    statusEl.textContent = '电脑思考中…';
+    setTimeout(() => {
+      if (token !== thinkToken) return;
+      const move = choose(state);
+      thinking = false;
+      if (!move) { draw(); return; }
+      history.push(state);
+      log.push(describe(state, move));
+      state = apply(state, move);
+      last = move;
+      finishIfEnded();
+      draw();
+    }, 20);
+  }
+  function undo() {
+    if (thinking) return;
+    thinkToken++;
+    if (mode === 'ai') {
+      if (state.turn === 'r' && history.length >= 2) {
+        state = history[history.length - 2];
+        history.length -= 2;
+        log.splice(-2, 2);
+      } else return;
+    } else if (history.length) {
+      state = history.pop();
+      log.pop();
+    } else return;
+    over = false; result = ''; sel = null; last = null;
+    draw();
+  }
+  function onPoint(r, c) {
+    if (over || thinking) return;
+    if (mode === 'ai' && state.turn !== 'r') return;
+    if (!on(r, c)) return;
+    if (sel) {
+      const mv = legal(state).find(m => m.fr === sel.r && m.fc === sel.c && m.tr === r && m.tc === c);
+      if (mv) { play(mv); return; }
+    }
+    const p = state.board[r][c];
+    sel = p && p.c === state.turn ? { r, c } : null;
+    draw();
+  }
+  function xy(r, c) { return [PAD + c * CELL, PAD + r * CELL]; }
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#e7c48a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#6b3e26';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for (let r = 0; r < 10; r++) {
+      const y = PAD + r * CELL;
+      ctx.moveTo(PAD, y); ctx.lineTo(PAD + 8 * CELL, y);
+    }
+    for (let c = 0; c < 9; c++) {
+      const x = PAD + c * CELL;
+      ctx.moveTo(x, PAD); ctx.lineTo(x, PAD + 4 * CELL);
+      ctx.moveTo(x, PAD + 5 * CELL); ctx.lineTo(x, PAD + 9 * CELL);
+    }
+    ctx.moveTo(PAD + 3 * CELL, PAD); ctx.lineTo(PAD + 5 * CELL, PAD + 2 * CELL);
+    ctx.moveTo(PAD + 5 * CELL, PAD); ctx.lineTo(PAD + 3 * CELL, PAD + 2 * CELL);
+    ctx.moveTo(PAD + 3 * CELL, PAD + 7 * CELL); ctx.lineTo(PAD + 5 * CELL, PAD + 9 * CELL);
+    ctx.moveTo(PAD + 5 * CELL, PAD + 7 * CELL); ctx.lineTo(PAD + 3 * CELL, PAD + 9 * CELL);
+    ctx.stroke();
+    ctx.fillStyle = '#6b3e26';
+    ctx.font = '22px "KaiTi", "STKaiti", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('楚 河', PAD + 2 * CELL, PAD + 4.5 * CELL);
+    ctx.fillText('汉 界', PAD + 6 * CELL, PAD + 4.5 * CELL);
+    [[2, 1], [2, 7], [7, 1], [7, 7], [3, 0], [3, 2], [3, 4], [3, 6], [3, 8], [6, 0], [6, 2], [6, 4], [6, 6], [6, 8]].forEach(([r, c]) => {
+      const [x, y] = xy(r, c);
+      ctx.strokeRect(x - 4, y - 4, 8, 8);
+    });
+    const hints = sel && !over ? legal(state).filter(m => m.fr === sel.r && m.fc === sel.c) : [];
+    hints.forEach(m => {
+      const [x, y] = xy(m.tr, m.tc);
+      ctx.beginPath();
+      ctx.fillStyle = state.board[m.tr][m.tc] ? 'rgba(180,40,40,.35)' : 'rgba(40,120,40,.45)';
+      ctx.arc(x, y, state.board[m.tr][m.tc] ? 18 : 6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    if (last) {
+      [ [last.fr, last.fc], [last.tr, last.tc] ].forEach(([r, c]) => {
+        const [x, y] = xy(r, c);
+        ctx.strokeStyle = 'rgba(20,90,40,.55)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x - 22, y - 22, 44, 44);
+      });
+    }
+    for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
+      const p = state.board[r][c];
+      if (!p) continue;
+      const [x, y] = xy(r, c);
+      ctx.beginPath();
+      ctx.fillStyle = '#f8efd8';
+      ctx.arc(x, y, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = sel && sel.r === r && sel.c === c ? 3.5 : 1.6;
+      ctx.strokeStyle = p.c === 'r' ? '#c0392b' : '#222';
+      ctx.stroke();
+      ctx.fillStyle = p.c === 'r' ? '#c0392b' : '#222';
+      ctx.font = '20px "KaiTi", "STKaiti", serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(NAME[p.c][p.t], x, y + 1);
+    }
+    const checked = !over && inCheck(state.board, state.turn);
+    if (over) statusEl.textContent = result;
+    else if (thinking) statusEl.textContent = '电脑思考中…';
+    else statusEl.textContent = (state.turn === 'r' ? '红方' : '黑方') + '行棋' + (checked ? '，将军' : '');
+    logEl.innerHTML = log.map(t => '<div>' + t + '</div>').join('');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  canvas.addEventListener('pointerdown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    onPoint(Math.round((y - PAD) / CELL), Math.round((x - PAD) / CELL));
+  });
+  document.getElementById('aiBtn').onclick = () => { mode = 'ai'; document.getElementById('aiBtn').classList.add('active'); document.getElementById('pvpBtn').classList.remove('active'); start(); };
+  document.getElementById('pvpBtn').onclick = () => { mode = 'pvp'; document.getElementById('pvpBtn').classList.add('active'); document.getElementById('aiBtn').classList.remove('active'); start(); };
+  document.getElementById('newBtn').onclick = start;
+  document.getElementById('undoBtn').onclick = undo;
+  start();
+})();
+</script>
+</body>
+</html>
