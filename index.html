@@ -11,12 +11,12 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
     font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
     color: #e6f7ff;
-    padding: 40px 20px;
+    padding: 48px 20px 40px;
   }
 
   header {
@@ -43,6 +43,7 @@
     gap: 32px;
     flex-wrap: wrap;
     justify-content: center;
+    max-width: 1100px;
   }
 
   .game-card {
@@ -136,11 +137,67 @@
     <a class="game-card" href="games/mota/index.html">
       <span class="game-icon">🏰</span>
       <h2>魔塔</h2>
-      <p>扮演勇者勇闯魔塔，收集钥匙与装备，精打细算攻防血，登顶击败魔王。</p>
+      <p>三十层魔塔。收集三色钥匙和装备，打不过可以下楼，一层层打到魔王殿。</p>
+      <span class="play-btn">开始游戏</span>
+    </a>
+
+    <a class="game-card" href="games/2048/index.html">
+      <span class="game-icon">🔢</span>
+      <h2>2048</h2>
+      <p>滑动合并相同数字，一路冲到 2048，还可以继续往上合。</p>
+      <span class="play-btn">开始游戏</span>
+    </a>
+
+    <a class="game-card" href="games/sudoku/index.html">
+      <span class="game-icon">9️⃣</span>
+      <h2>数独</h2>
+      <p>在每行、每列、每宫填入 1 到 9，数字不能重复。</p>
+      <span class="play-btn">开始游戏</span>
+    </a>
+
+    <a class="game-card" href="games/minesweeper/index.html">
+      <span class="game-icon">💣</span>
+      <h2>扫雷</h2>
+      <p>根据数字推断地雷位置。第一下不会踩雷，右键可以插旗。</p>
+      <span class="play-btn">开始游戏</span>
+    </a>
+
+    <a class="game-card" href="games/sokoban/index.html">
+      <span class="game-icon">📦</span>
+      <h2>推箱子</h2>
+      <p>把箱子全部推到黄格上。推之前想好退路，卡住了可以撤销。</p>
+      <span class="play-btn">开始游戏</span>
+    </a>
+
+    <a class="game-card" href="games/dino/index.html">
+      <span class="game-icon">🦕</span>
+      <h2>小恐龙</h2>
+      <p>跳过仙人掌，蹲过低飞的鸟，看这一跑能坚持多远。</p>
+      <span class="play-btn">开始游戏</span>
+    </a>
+
+    <a class="game-card" href="games/chess/index.html">
+      <span class="game-icon">♟️</span>
+      <h2>国际象棋</h2>
+      <p>标准规则，可以和电脑下，也可以两个人轮流走。</p>
+      <span class="play-btn">开始游戏</span>
+    </a>
+
+    <a class="game-card" href="games/solitaire/index.html">
+      <span class="game-icon">🃏</span>
+      <h2>纸牌</h2>
+      <p>经典克朗代克。黑红交替往下接，按花色把牌收到右上角。</p>
+      <span class="play-btn">开始游戏</span>
+    </a>
+
+    <a class="game-card" href="games/xiangqi/index.html">
+      <span class="game-icon">🔴</span>
+      <h2>中国象棋</h2>
+      <p>标准规则，红方在下。可以挑战电脑，也可以双人对弈。</p>
       <span class="play-btn">开始游戏</span>
     </a>
   </main>
 
-  <footer>共 3 款游戏 · 纯 HTML / JavaScript 实现，无需联网</footer>
+  <footer>共 11 款游戏 · 纯 HTML / JavaScript 实现，无需联网</footer>
 </body>
 </html>
