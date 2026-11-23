@@ -7,70 +7,136 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #e6f7ff;
-    padding: 72px 12px 28px;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    background: #8e8e8e;
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #111;
+    padding: 72px 16px 32px;
   }
   .back-link {
-    position: fixed; top: 18px; left: 18px; z-index: 10; color: #a8d8ea;
-    text-decoration: none; font-size: 14px; padding: 6px 14px;
-    border: 1px solid #2c5364; border-radius: 16px; background: rgba(255,255,255,0.05);
+    position: fixed; top: 16px; left: 16px; z-index: 10;
+    color: #111; text-decoration: none; font-size: 14px;
+    padding: 6px 12px; background: #c0c0c0;
+    border-top: 2px solid #fff; border-left: 2px solid #fff;
+    border-right: 2px solid #5a5a5a; border-bottom: 2px solid #5a5a5a;
   }
   .wrap { text-align: center; }
-  h1 { letter-spacing: 4px; color: #7ce7ff; margin-bottom: 12px; }
-  .bar { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-  button {
-    border: 1px solid #2c5364; background: rgba(255,255,255,0.05); color: #e6f7ff;
-    border-radius: 14px; padding: 6px 12px; cursor: pointer;
+  h1 { letter-spacing: 6px; font-size: 28px; margin-bottom: 12px; color: #1a1a1a; }
+  .diff { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; }
+  .sq {
+    min-width: 72px; height: 36px; padding: 0 12px;
+    background: #c0c0c0; color: #111; font-weight: bold; cursor: pointer;
+    border-top: 3px solid #fff; border-left: 3px solid #fff;
+    border-right: 3px solid #6a6a6a; border-bottom: 3px solid #6a6a6a;
   }
-  button.active, button.primary { background: #00c9a7; color: #062b26; border-color: #00c9a7; font-weight: bold; }
-  .stat { color: #ffd166; font-weight: bold; min-width: 64px; }
+  .sq.active, .sq:active {
+    border-top-color: #6a6a6a; border-left-color: #6a6a6a;
+    border-right-color: #fff; border-bottom-color: #fff;
+  }
+  .panel {
+    display: inline-block;
+    background: #c0c0c0;
+    padding: 10px;
+    border-top: 3px solid #fff; border-left: 3px solid #fff;
+    border-right: 3px solid #5a5a5a; border-bottom: 3px solid #5a5a5a;
+  }
+  .hud {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; margin-bottom: 10px; padding: 6px;
+    background: #c0c0c0;
+    border-top: 3px solid #6a6a6a; border-left: 3px solid #6a6a6a;
+    border-right: 3px solid #fff; border-bottom: 3px solid #fff;
+  }
+  .lcd {
+    min-width: 74px; height: 42px; padding: 0 8px;
+    background: #300; color: #f22;
+    font-family: "Courier New", ui-monospace, monospace;
+    font-weight: 700; font-size: 28px; letter-spacing: 2px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #111;
+  }
+  #face {
+    width: 44px; height: 44px; padding: 0; background: #ffd54a; cursor: pointer;
+    border-top: 3px solid #fff; border-left: 3px solid #fff;
+    border-right: 3px solid #6a6a6a; border-bottom: 3px solid #6a6a6a;
+    display: grid; place-items: center;
+  }
+  #face svg { width: 30px; height: 30px; display: block; }
+  .board-scroll { max-width: min(96vw, 920px); overflow: auto; }
   #board {
-    display: inline-grid; background: #8fb8c9; padding: 6px; border-radius: 8px;
+    display: inline-grid; gap: 2px; background: #808080; padding: 3px;
     user-select: none; touch-action: manipulation;
+    --size: 36px;
   }
   .cell {
-    width: 28px; height: 28px; margin: 1px; border-radius: 3px;
+    width: var(--size); height: var(--size);
+    background: #c0c0c0; color: #111;
+    border-top: 3px solid #fff; border-left: 3px solid #fff;
+    border-right: 3px solid #808080; border-bottom: 3px solid #808080;
     display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 15px; background: #d7eef5; color: #163244;
-    cursor: pointer;
+    font-weight: 800; font-size: calc(var(--size) * 0.52);
+    line-height: 1; cursor: pointer; padding: 0;
   }
-  .cell.open { background: #eef7fb; cursor: default; }
-  .cell.mine { background: #ff6b6b; }
-  .cell.badflag { background: #ffd166; }
-  .n1 { color: #1d4ed8; } .n2 { color: #15803d; } .n3 { color: #dc2626; }
-  .n4 { color: #1e3a8a; } .n5 { color: #9f1239; } .n6 { color: #0f766e; }
-  .n7 { color: #111827; } .n8 { color: #6b7280; }
-  .hint { margin-top: 12px; color: #a8d8ea; font-size: 14px; line-height: 1.7; }
+  .cell.open {
+    border: 1px solid #7a7a7a;
+    background: #d0d0d0;
+    cursor: default;
+  }
+  .cell svg { width: 62%; height: 62%; display: block; }
+  .cell.boom { background: #e23b3b; }
+  .cell.bad { background: #f0c14a; }
+  .n1 { color: #0000ff; } .n2 { color: #008000; } .n3 { color: #ff0000; }
+  .n4 { color: #000080; } .n5 { color: #800000; } .n6 { color: #008080; }
+  .n7 { color: #111; } .n8 { color: #808080; }
+  .tools { display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 12px; }
+  #best { font-weight: bold; min-width: 88px; }
+  .hint { margin-top: 12px; color: #222; font-size: 14px; line-height: 1.7; }
 </style>
 </head>
 <body>
   <a class="back-link" href="../../index.html">← 返回游戏列表</a>
   <div class="wrap">
     <h1>扫雷</h1>
-    <div class="bar">
-      <button type="button" data-d="easy" class="active">初级</button>
-      <button type="button" data-d="mid">中级</button>
-      <button type="button" data-d="hard">高级</button>
-      <button type="button" id="restart" class="primary">重开</button>
-      <button type="button" id="flagMode">插旗</button>
-      <span class="stat" id="left">10</span>
-      <span class="stat" id="time">0</span>
-      <span class="stat" id="best">最佳 --</span>
+    <div class="diff">
+      <button type="button" class="sq active" data-d="easy">初级</button>
+      <button type="button" class="sq" data-d="mid">中级</button>
+      <button type="button" class="sq" data-d="hard">高级</button>
     </div>
-    <div id="board"></div>
-    <div class="hint">左键翻开，右键或「插旗」标记。数字表示周围地雷数。第一下不会踩雷。</div>
+    <div class="panel">
+      <div class="hud">
+        <div class="lcd" id="left">010</div>
+        <button type="button" id="face" aria-label="重开"></button>
+        <div class="lcd" id="time">000</div>
+      </div>
+      <div class="board-scroll"><div id="board"></div></div>
+    </div>
+    <div class="tools">
+      <button type="button" class="sq" id="flagMode">插旗</button>
+      <span id="best">最佳 --</span>
+    </div>
+    <div class="hint">左键翻开，右键或长按插旗。点已翻开的数字，周围旗子数对上就会把其余格子翻开。第一下不会踩雷。</div>
   </div>
 <script>
 (function () {
   const PRESET = {
-    easy: { r: 9, c: 9, m: 10, size: 32 },
-    mid: { r: 16, c: 16, m: 40, size: 26 },
-    hard: { r: 16, c: 30, m: 99, size: 22 }
+    easy: { r: 9, c: 9, m: 10, size: 36 },
+    mid: { r: 16, c: 16, m: 40, size: 30 },
+    hard: { r: 16, c: 30, m: 99, size: 26 }
+  };
+  const MINE = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="#161616"/><path d="M8 1.2v13.6M1.2 8h13.6M3.1 3.1l9.8 9.8M12.9 3.1l-9.8 9.8" stroke="#161616" stroke-width="1.5"/></svg>';
+  const FLAG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 14V2" stroke="#222" stroke-width="1.6"/><path d="M4.6 2.4h.6l6.2 3.1-6.2 3.1H4.6z" fill="#e10600"/></svg>';
+  const FACES = {
+    play: '<svg viewBox="0 0 32 32"><circle cx="32" cy="32" r="0"/><circle cx="11" cy="13" r="2" fill="#222"/><circle cx="21" cy="13" r="2" fill="#222"/><path d="M10 20c2 3 10 3 12 0" fill="none" stroke="#222" stroke-width="2" stroke-linecap="round"/></svg>',
+    win: '<svg viewBox="0 0 32 32"><path d="M6 14h8l-1.5-4h-5zM18 14h8l-1.5-4h-5z" fill="#222"/><path d="M10 21c2 3 10 3 12 0" fill="none" stroke="#222" stroke-width="2" stroke-linecap="round"/></svg>',
+    dead: '<svg viewBox="0 0 32 32"><path d="M8 10l6 6M14 10l-6 6M18 10l6 6M24 10l-6 6" stroke="#222" stroke-width="2"/><path d="M10 22c2-3 10-3 12 0" fill="none" stroke="#222" stroke-width="2" stroke-linecap="round"/></svg>'
   };
   const boardEl = document.getElementById('board');
-  let diff = 'easy', rows, cols, mineCount, mines, open, flags, started, dead, won, timer, seconds, first;
+  const faceEl = document.getElementById('face');
+  let diff = 'easy', rows, cols, mineCount, mines, open, flags, started, dead, won, timer, seconds;
+  let flagMode = false, holdTimer = null, suppressClick = false;
 
   function key(r, c) { return r + ',' + c; }
   function neighbors(r, c) {
@@ -94,7 +160,15 @@
       const j = Math.floor(Math.random() * (i + 1));
       [cells[i], cells[j]] = [cells[j], cells[i]];
     }
-    mines = new Set(cells.slice(0, mineCount));
+    mines = new Set(cells.slice(0, Math.min(mineCount, cells.length)));
+  }
+  function lcd(n) {
+    const v = Math.max(0, Math.min(999, n));
+    return String(v).padStart(3, '0');
+  }
+  function showBest() {
+    const old = Number(localStorage.getItem('gc_mine_' + diff) || 0);
+    document.getElementById('best').textContent = old ? ('最佳 ' + old + 's') : '最佳 --';
   }
   function saveBest() {
     const k = 'gc_mine_' + diff;
@@ -102,42 +176,36 @@
     if (!old || seconds < old) localStorage.setItem(k, seconds);
     showBest();
   }
-  function showBest() {
-    const old = Number(localStorage.getItem('gc_mine_' + diff) || 0);
-    document.getElementById('best').textContent = old ? ('最佳 ' + old + 's') : '最佳 --';
-  }
   function stop() { clearInterval(timer); timer = null; }
+  function face(kind) { faceEl.innerHTML = FACES[kind]; }
   function render() {
-    boardEl.style.gridTemplateColumns = 'repeat(' + cols + ', ' + PRESET[diff].size + 'px)';
+    const size = PRESET[diff].size;
+    boardEl.style.setProperty('--size', size + 'px');
+    boardEl.style.gridTemplateColumns = 'repeat(' + cols + ', ' + size + 'px)';
     boardEl.innerHTML = '';
-    let flagged = 0;
-    flags.forEach(() => flagged++);
-    document.getElementById('left').textContent = '雷 ' + Math.max(0, mineCount - flags.size);
+    document.getElementById('left').textContent = lcd(Math.max(0, mineCount - flags.size));
+    face(dead ? 'dead' : won ? 'win' : 'play');
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const el = document.createElement('div');
       el.className = 'cell';
-      el.style.width = el.style.height = PRESET[diff].size + 'px';
+      el.dataset.r = r;
+      el.dataset.c = c;
       const id = key(r, c);
       const isOpen = open.has(id);
       const isMine = mines && mines.has(id);
       if (isOpen) {
         el.classList.add('open');
-        if (isMine) { el.classList.add('mine'); el.textContent = '💣'; }
+        if (isMine) { el.classList.add('boom'); el.innerHTML = MINE; }
         else {
           const n = around(r, c);
           if (n) { el.textContent = n; el.classList.add('n' + n); }
         }
       } else if (dead && isMine) {
-        el.classList.add('mine'); el.textContent = '💣';
+        el.classList.add('boom'); el.innerHTML = MINE;
       } else if (flags.has(id)) {
-        el.textContent = '🚩';
-        if (dead && !isMine) el.classList.add('badflag');
+        el.innerHTML = FLAG;
+        if (dead && !isMine) el.classList.add('bad');
       }
-      el.oncontextmenu = (e) => { e.preventDefault(); toggleFlag(r, c); };
-      el.onclick = (e) => { if (e.shiftKey || document.getElementById('flagMode').classList.contains('active')) toggleFlag(r, c); else reveal(r, c); };
-      let hold;
-      el.onpointerdown = () => { hold = setTimeout(() => toggleFlag(r, c), 450); };
-      el.onpointerup = el.onpointerleave = () => clearTimeout(hold);
       boardEl.appendChild(el);
     }
   }
@@ -146,15 +214,12 @@
     started = true;
     timer = setInterval(() => {
       seconds++;
-      document.getElementById('time').textContent = seconds + 's';
+      document.getElementById('time').textContent = lcd(seconds);
     }, 1000);
   }
   function reveal(r, c) {
     if (dead || won || flags.has(key(r, c))) return;
-    if (!mines) {
-      place(r, c);
-      startClock();
-    }
+    if (!mines) { place(r, c); startClock(); }
     if (open.has(key(r, c))) { chord(r, c); return; }
     const stack = [[r, c]];
     while (stack.length) {
@@ -170,10 +235,9 @@
   }
   function chord(r, c) {
     if (!open.has(key(r, c)) || mines.has(key(r, c))) return;
-    const n = around(r, c);
     const near = neighbors(r, c);
     const flagged = near.filter(([rr, cc]) => flags.has(key(rr, cc))).length;
-    if (flagged !== n) return;
+    if (flagged !== around(r, c)) return;
     near.forEach(([rr, cc]) => { if (!flags.has(key(rr, cc))) reveal(rr, cc); });
   }
   function toggleFlag(r, c) {
@@ -182,9 +246,7 @@
     if (flags.has(id)) flags.delete(id); else flags.add(id);
     render();
   }
-  function lose() {
-    dead = true; stop(); render();
-  }
+  function lose() { dead = true; stop(); render(); }
   function checkWin() {
     if (open.size === rows * cols - mineCount) {
       won = true; stop(); saveBest();
@@ -198,16 +260,45 @@
     mines = null; open = new Set(); flags = new Set();
     started = false; dead = false; won = false; seconds = 0;
     stop();
-    document.getElementById('time').textContent = '0s';
+    document.getElementById('time').textContent = '000';
     showBest();
-    document.querySelectorAll('.bar button[data-d]').forEach(b => b.classList.toggle('active', b.dataset.d === diff));
+    document.querySelectorAll('.diff button').forEach(b => b.classList.toggle('active', b.dataset.d === diff));
     render();
   }
-  document.querySelector('.bar').onclick = (e) => {
-    if (e.target.dataset.d) setup(e.target.dataset.d);
+
+  boardEl.addEventListener('pointerdown', (e) => {
+    const cell = e.target.closest('.cell');
+    if (!cell || e.button === 2) return;
+    suppressClick = false;
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => { suppressClick = true; toggleFlag(r, c); }, 420);
+  });
+  boardEl.addEventListener('pointerup', () => clearTimeout(holdTimer));
+  boardEl.addEventListener('pointercancel', () => clearTimeout(holdTimer));
+  boardEl.addEventListener('pointerleave', () => clearTimeout(holdTimer));
+  boardEl.addEventListener('contextmenu', (e) => {
+    const cell = e.target.closest('.cell');
+    if (!cell) return;
+    e.preventDefault();
+    clearTimeout(holdTimer);
+    suppressClick = true;
+    toggleFlag(+cell.dataset.r, +cell.dataset.c);
+  });
+  boardEl.addEventListener('click', (e) => {
+    const cell = e.target.closest('.cell');
+    if (!cell) return;
+    if (suppressClick) { suppressClick = false; return; }
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    if (e.shiftKey || flagMode) toggleFlag(r, c);
+    else reveal(r, c);
+  });
+  document.querySelector('.diff').onclick = (e) => { if (e.target.dataset.d) setup(e.target.dataset.d); };
+  faceEl.onclick = () => setup();
+  document.getElementById('flagMode').onclick = (e) => {
+    flagMode = !flagMode;
+    e.currentTarget.classList.toggle('active', flagMode);
   };
-  document.getElementById('restart').onclick = () => setup();
-  document.getElementById('flagMode').onclick = (e) => e.target.classList.toggle('active');
   setup('easy');
 })();
 </script>

@@ -7,45 +7,106 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    min-height: 100vh; display: flex; justify-content: center; align-items: center;
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #e6f7ff;
-    padding: 70px 12px 24px;
+    min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
+    background: radial-gradient(ellipse at 50% 20%, #f8e4b6, #e7c27a 48%, #d2a45c);
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif; color: #3b2414;
+    padding: 72px 12px 28px;
   }
   .back-link {
-    position: fixed; top: 18px; left: 18px; z-index: 10; color: #a8d8ea;
-    text-decoration: none; font-size: 14px; padding: 6px 14px;
-    border: 1px solid #2c5364; border-radius: 16px; background: rgba(255,255,255,0.05);
+    position: fixed; top: 16px; left: 16px; z-index: 10; color: #3b2414;
+    text-decoration: none; font-size: 14px; padding: 6px 12px;
+    background: #f6efe2;
+    border-top: 2px solid #fff; border-left: 2px solid #fff;
+    border-right: 2px solid #8a6238; border-bottom: 2px solid #8a6238;
   }
   .wrap { text-align: center; }
-  h1 { letter-spacing: 4px; color: #7ce7ff; margin-bottom: 8px; }
+  h1 { letter-spacing: 6px; margin-bottom: 10px; color: #5a3218; }
   .bar { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-  button {
-    border: none; border-radius: 16px; padding: 7px 12px; cursor: pointer;
-    background: #00c9a7; color: #062b26; font-weight: bold;
+  button, select {
+    background: #f6efe2; color: #3b2414; font-weight: bold; cursor: pointer;
+    border-top: 2px solid #fff; border-left: 2px solid #fff;
+    border-right: 2px solid #8a6238; border-bottom: 2px solid #8a6238;
+    padding: 6px 10px; font-size: 14px;
   }
-  button.ghost { background: rgba(255,255,255,0.08); color: #e6f7ff; border: 1px solid #2c5364; }
-  .stat { color: #ffd166; font-weight: bold; }
+  button.solid { background: #c47848; color: #fff8ee; }
+  .stat { color: #5a3218; font-weight: bold; }
+  #stage { display: inline-block; padding: 8px; background: rgba(90, 50, 20, 0.08); }
   #board {
-    display: inline-grid; background: #102733; padding: 8px; border-radius: 10px;
-    user-select: none; touch-action: manipulation;
+    display: inline-grid; user-select: none; touch-action: manipulation;
+    background: transparent;
   }
-  .tile { width: var(--cell, 42px); height: var(--cell, 42px); display: flex; align-items: center; justify-content: center; font-size: calc(var(--cell, 42px) * 0.62); }
-  select {
-    background: rgba(255,255,255,0.08); color: #e6f7ff; border: 1px solid #2c5364;
-    border-radius: 12px; padding: 6px 8px; font-size: 14px;
+  .tile {
+    width: var(--cell, 46px); height: var(--cell, 46px);
+    display: flex; align-items: center; justify-content: center; position: relative;
   }
-  .wall { background: #2c5364; border-radius: 4px; }
-  .floor { background: rgba(255,255,255,0.04); border-radius: 4px; }
-  .goal { background: rgba(255, 209, 102, 0.18); border-radius: 4px; }
-  .pad { margin: 12px auto 0; display: grid; grid-template-columns: 54px 54px 54px; grid-template-rows: 44px 44px; gap: 6px; width: 174px; }
+  .wall {
+    background-color: #c47848;
+    background-image:
+      linear-gradient(#6a3820, #6a3820),
+      linear-gradient(#6a3820, #6a3820),
+      linear-gradient(#6a3820, #6a3820);
+    background-size: 100% 2px, 2px 50%, 2px 50%;
+    background-position: center, center top, left bottom;
+    background-repeat: no-repeat;
+    box-shadow: inset 0 1px 0 rgba(255, 220, 180, 0.45);
+  }
+  .floor { background: #f7f1e4; box-shadow: inset 0 0 0 1px rgba(120, 80, 40, 0.08); }
+  .mark {
+    width: 46%; height: 46%; position: absolute;
+  }
+  .mark::before, .mark::after {
+    content: ""; position: absolute; left: 42%; top: 0; width: 16%; height: 100%;
+    background: #2fa84a; border-radius: 1px;
+  }
+  .mark::before { transform: rotate(45deg); }
+  .mark::after { transform: rotate(-45deg); }
+  .crate {
+    width: 74%; height: 74%; position: relative; z-index: 1;
+    background-color: #e2b15a;
+    background-image:
+      linear-gradient(#8a5a28, #8a5a28),
+      linear-gradient(#8a5a28, #8a5a28);
+    background-size: 100% 12%, 12% 100%;
+    background-position: center, center;
+    background-repeat: no-repeat;
+    border: 3px solid #7a4a1e;
+    box-shadow: inset 0 0 0 2px #f3d48a, 1px 2px 0 rgba(80, 40, 10, 0.25);
+  }
+  .crate.on { box-shadow: inset 0 0 0 2px #f3d48a, 0 0 0 3px #2fa84a; }
+  .guy { width: 58%; height: 76%; position: relative; z-index: 2; }
+  .guy.left { transform: scaleX(-1); }
+  .guy .hair {
+    position: absolute; left: 16%; right: 16%; top: 0; height: 30%;
+    background: #2c2118; border-radius: 45% 45% 18% 18%;
+  }
+  .guy .face {
+    position: absolute; left: 22%; right: 22%; top: 18%; height: 22%;
+    background: #f3c7a1; border-radius: 40%;
+  }
+  .guy .face::after {
+    content: ""; position: absolute; inset: 28% 14% 30%;
+    background:
+      radial-gradient(circle at 28% 50%, #222 32%, transparent 34%),
+      radial-gradient(circle at 72% 50%, #222 32%, transparent 34%);
+  }
+  .guy .shirt {
+    position: absolute; left: 14%; right: 14%; top: 42%; height: 28%;
+    background: #e23d3d; border-radius: 3px 3px 1px 1px;
+  }
+  .guy .pants {
+    position: absolute; left: 18%; right: 18%; top: 68%; bottom: 0;
+    background:
+      linear-gradient(#3a6fd8, #3a6fd8) left / 44% 100% no-repeat,
+      linear-gradient(#3a6fd8, #3a6fd8) right / 44% 100% no-repeat;
+  }
+  .pad { margin: 12px auto 0; display: grid; grid-template-columns: 52px 52px 52px; grid-template-rows: 42px 42px; gap: 6px; width: 168px; }
   .pad button { font-size: 18px; }
   .pad .up { grid-column: 2; }
   .pad .left { grid-column: 1; grid-row: 2; }
   .pad .down { grid-column: 2; grid-row: 2; }
   .pad .right { grid-column: 3; grid-row: 2; }
-  .hint { margin-top: 10px; color: #a8d8ea; font-size: 14px; }
-  #msg { min-height: 22px; margin-top: 6px; color: #7ce7ff; }
+  .hint { margin-top: 10px; color: #5a3218; font-size: 14px; }
+  #msg { min-height: 22px; margin-top: 6px; color: #1f7a34; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -53,15 +114,15 @@
   <div class="wrap">
     <h1>推箱子</h1>
     <div class="bar">
-      <button class="ghost" id="prev" type="button">上一关</button>
+      <button id="prev" type="button">上一关</button>
       <span class="stat" id="level">第 1 关</span>
       <select id="picker" aria-label="选择关卡"></select>
-      <button class="ghost" id="next" type="button">下一关</button>
-      <button class="ghost" id="undo" type="button">撤销</button>
-      <button id="reset" type="button">重开</button>
+      <button id="next" type="button">下一关</button>
+      <button id="undo" type="button">撤销</button>
+      <button class="solid" id="reset" type="button">重开</button>
       <span class="stat" id="steps">0 步</span>
     </div>
-    <div id="board"></div>
+    <div id="stage"><div id="board"></div></div>
     <div class="pad">
       <button class="up" type="button" data-dir="up">↑</button>
       <button class="left" type="button" data-dir="left">←</button>
@@ -69,50 +130,36 @@
       <button class="right" type="button" data-dir="right">→</button>
     </div>
     <div id="msg"></div>
-    <div class="hint">把全部箱子推到黄格上。方向键或 <b>WASD</b>，<b>U</b> 撤销，<b>R</b> 重开。</div>
+    <div class="hint">把木箱全部推到绿色叉上。方向键或 <b>WASD</b>，<b>U</b> 撤销，<b>R</b> 重开。箱子只能推，不能拉。</div>
   </div>
 <script>
 (function () {
   const LEVELS = [
-    ["#####", "#@$.#", "#####"],
-    ["########", "# .  * #", "#      #", "#  #   #", "# $    #", "# @ *  #", "########"],
-    ["#########", "# .   $@#", "#   #   #", "#   #   #", "#     * #", "#########"],
-    ["#########", "#       #", "#@$   . #", "# ###   #", "#       #", "# *     #", "#########"],
-    ["#########", "#   *   #", "# $@    #", "# #  #  #", "#.     *#", "#########"],
-    ["########", "# .  * #", "#      #", "#  #   #", "# $    #", "# @$.  #", "########"],
-    ["######", "#    #", "# $@.#", "#    #", "######"],
-    ["#######", "##   ##", "# . . #", "# $ $ #", "## @ ##", "#######"],
-    ["######", "#.   #", "# $$ #", "#  @ #", "# .  #", "######"],
-    ["#########", "#   .   #", "#  $$   #", "# # @#  #", "#.     *#", "#########"],
-    ["#######", "#     #", "# $ # #", "# #.  #", "#  @  #", "#######"],
-    ["########", "# .  * #", "#   @  #", "#  #$  #", "#  $   #", "#   .  #", "########"],
-    ["#########", "#   *   #", "#     $@#", "# #  #  #", "#.     *#", "#########"],
-    ["########", "# . @* #", "#   $  #", "#  #   #", "#  $   #", "#   .  #", "########"],
-    ["########", "# .@$. #", "#   $  #", "#  #   #", "#  $   #", "#   .  #", "########"],
-    ["##########", "# .   $  #", "#    #   #", "#  @$   .#", "#  #     #", "#    *   #", "##########"],
-    ["  #####", "###   #", "#.@$  #", "### $.#", "  #   #", "  #####"],
-    ["########", "# +$ . #", "#   $  #", "#  #   #", "#  $   #", "#   .  #", "########"],
-    ["#########", "#   *  @#", "#     $$#", "# #  #  #", "#.     .#", "#########"],
-    ["########", "#@*  . #", "#   $  #", "#  #   #", "#  $   #", "#   .  #", "########"],
-    ["##########", "# .      #", "#    # $ #", "# @$    .#", "#  #     #", "#    *   #", "##########"],
-    ["########", "# .    #", "#   #$ #", "#  $$ .#", "# #@   #", "#    # #", "#  .   #", "########"],
-    ["#########", "#   .   #", "#  $    #", "# # $#  #", "#.@$   .#", "#########"],
-    ["##########", "#        #", "#@*    . #", "#  # $   #", "#   $ #  #", "#    .   #", "#   #    #", "##########"],
-    ["#########", "#   .   #", "#  $    #", "# # $#  #", "#+$    .#", "#########"],
-    ["########", "# .$ . #", "#@$    #", "#  #   #", "#  $   #", "#   .  #", "########"],
-    ["########", "#  .   #", "#  $   #", "## $#  #", "#   @. #", "########"],
-    ["########", "# $  . #", "#  #   #", "# $#   #", "# @  . #", "########"],
-    ["########", "#      #", "# .$$. #", "#  @#  #", "#      #", "########"],
-    ["#########", "#   .   #", "## $#$# #", "#   @   #", "#  .$.  #", "#########"],
-    ["#######", "# $.  #", "# # # #", "#    $#", "#  # @#", "#. $ .#", "#######"],
-    ["#######", "# $.  #", "# # # #", "#@$   #", "#  #  #", "#. $ .#", "#######"],
-    ["########", "#   .$@#", "# #$   #", "#      #", "#   ## #", "# .    #", "########"],
-    ["#######", "#@$.  #", "#$# # #", "# $   #", "#  #  #", "#.   .#", "#######"],
-    ["#######", "# $.  #", "# # # #", "#     #", "# $#  #", "#.  $+#", "#######"],
-    ["#######", "# $.  #", "# # # #", "#     #", "# $#$ #", "#.@  .#", "#######"]
+    ["########", "#  . . #", "# $#$# #", "#  @   #", "# $#$# #", "#  . . #", "########"],
+    ["#########", "#  . .  #", "# $ # $ #", "# # @ # #", "# $ # $ #", "#  . .  #", "#########"],
+    ["########", "#  .   #", "# $$#  #", "#  @   #", "# # $ .#", "#   .  #", "########"],
+    ["#######", "#@    #", "# $$  #", "# # # #", "# .$ .#", "#  .  #", "#######"],
+    ["########", "# .  . #", "# $ $  #", "# #$@# #", "#   $  #", "# .  . #", "########"],
+    ["########", "# .  . #", "#  $   #", "# #@$# #", "#  $ $ #", "# .  . #", "########"],
+    ["########", "# .$@. #", "# $    #", "# # $# #", "#   $  #", "# .  . #", "########"],
+    ["    ###    ", "    #.#    ", "    # #    ", "    # #    ", "    # #    ", "#####$#####", "#. $ @ $ .#", "#####$#####", "    # #    ", "    # #    ", "    # #    ", "    #.#    ", "    ###    "],
+    ["########", "# .  . #", "# $  $ #", "# # @# #", "# $  $ #", "# .  . #", "########"],
+    ["########", "#. # . #", "# $ $  #", "#  # @ #", "# $ $  #", "#. # . #", "########"],
+    ["##########", "#@       #", "# $ $ $  #", "# # # #  #", "# . . .  #", "##########"],
+    ["##########", "# .      #", "#  $ #   #", "# @$ #  .#", "#  $     #", "#    .   #", "##########"],
+    ["  ######", "###.   #", "#  $$  #", "# # ## #", "#  $ @ #", "# . .  #", "########"],
+    ["###########", "#@        #", "# $ $ $ $ #", "#         #", "## # # # ##", "# . . . . #", "###########"],
+    ["########", "# .  . #", "#      #", "# $  $ #", "# # @# #", "# $  $ #", "#      #", "# .  . #", "########"]
   ];
   const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1], w: [-1, 0], s: [1, 0], a: [0, -1], d: [0, 1] };
-  let index, walls, blocked, goals, boxes, pr, pc, steps, undoStack, won, H, W;
+  let index, walls, blocked, goals, boxes, pr, pc, steps, undoStack, won, H, W, face;
+
+  function guy() {
+    const el = document.createElement('div');
+    el.className = 'guy' + (face === 'left' ? ' left' : '');
+    el.innerHTML = '<i class="hair"></i><i class="face"></i><i class="shirt"></i><i class="pants"></i>';
+    return el;
+  }
 
   function load(i) {
     index = (i + LEVELS.length) % LEVELS.length;
@@ -140,7 +187,7 @@
     for (let c = 0; c < W; c++) { see(0, c); see(H - 1, c); }
     while (q.length) { const [r, c] = q.pop(); see(r + 1, c); see(r - 1, c); see(r, c + 1); see(r, c - 1); }
     ext.forEach(k => { if (k !== pr + ',' + pc) blocked.add(k); });
-    steps = 0; undoStack = []; won = false;
+    steps = 0; undoStack = []; won = false; face = 'right';
     localStorage.setItem('gc_sokoban_level', index);
     document.getElementById('level').textContent = '第 ' + (index + 1) + ' / ' + LEVELS.length + ' 关';
     document.getElementById('picker').value = String(index);
@@ -148,12 +195,13 @@
     render();
   }
   function snapshot() {
-    undoStack.push({ pr, pc, boxes: [...boxes].join('|'), steps });
+    undoStack.push({ pr, pc, boxes: [...boxes].join('|'), steps, face });
     if (undoStack.length > 400) undoStack.shift();
   }
   function render() {
     const board = document.getElementById('board');
-    const cell = Math.max(28, Math.min(42, Math.floor((Math.min(window.innerWidth, 760) - 48) / W)));
+    const room = Math.min(window.innerWidth - 36, window.innerHeight - 250, 640);
+    const cell = Math.max(28, Math.min(52, Math.floor(room / Math.max(W, H))));
     board.style.setProperty('--cell', cell + 'px');
     board.style.gridTemplateColumns = 'repeat(' + W + ', ' + cell + 'px)';
     board.innerHTML = '';
@@ -163,21 +211,28 @@
       const el = document.createElement('div');
       el.className = 'tile';
       if (walls.has(k)) el.classList.add('wall');
-      else if (!blocked.has(k)) { el.classList.add('floor'); paint(el, k, r, c); }
+      else if (!blocked.has(k)) {
+        el.classList.add('floor');
+        if (goals.has(k)) {
+          const mark = document.createElement('i');
+          mark.className = 'mark';
+          el.appendChild(mark);
+        }
+        if (r === pr && c === pc) el.appendChild(guy());
+        else if (boxes.has(k)) {
+          const box = document.createElement('i');
+          box.className = 'crate' + (goals.has(k) ? ' on' : '');
+          el.appendChild(box);
+        }
+      }
       if (boxes.has(k) && goals.has(k)) done++;
       board.appendChild(el);
     }
     document.getElementById('steps').textContent = steps + ' 步';
     if (!won && goals.size && done === goals.size) {
       won = true;
-      document.getElementById('msg').textContent = index === LEVELS.length - 1 ? '全部通关。' : '过关了，可以进入下一关。';
+      document.getElementById('msg').textContent = index === LEVELS.length - 1 ? '全部通关。' : '这一关推完了，可以进下一关。';
     }
-  }
-  function paint(el, k, r, c) {
-    if (goals.has(k)) el.classList.add('goal');
-    if (r === pr && c === pc) el.textContent = '🙂';
-    else if (boxes.has(k)) el.textContent = goals.has(k) ? '🎁' : '📦';
-    else if (goals.has(k)) el.textContent = '·';
   }
   function move(dir) {
     if (won || !dir) return;
@@ -192,12 +247,14 @@
       boxes.delete(nk); boxes.add(bk);
     }
     pr = nr; pc = nc; steps++;
+    if (dc < 0) face = 'left';
+    if (dc > 0) face = 'right';
     render();
   }
   function undo() {
     const prev = undoStack.pop();
     if (!prev) return;
-    pr = prev.pr; pc = prev.pc; steps = prev.steps;
+    pr = prev.pr; pc = prev.pc; steps = prev.steps; face = prev.face || 'right';
     boxes = new Set(prev.boxes ? prev.boxes.split('|') : []);
     won = false;
     document.getElementById('msg').textContent = '';
@@ -219,13 +276,15 @@
     const d = e.target.dataset.dir;
     if (d) move(DIRS[d]);
   };
+  const KEYS = { arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down', arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right' };
   document.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
-    if (DIRS[k] || DIRS[e.key]) { e.preventDefault(); move(DIRS[k] || DIRS[e.key]); }
+    if (KEYS[k]) { e.preventDefault(); move(DIRS[KEYS[k]]); }
     else if (k === 'u' || k === 'z') undo();
     else if (k === 'r') load(index);
     else if (k === 'n' && won) load(index + 1);
   });
+  window.addEventListener('resize', () => render());
   load(Number(localStorage.getItem('gc_sokoban_level') || 0));
 })();
 </script>

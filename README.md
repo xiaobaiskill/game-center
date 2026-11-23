@@ -9,11 +9,11 @@
 | `snake`  | 贪吃蛇   | `games/snake/index.html`  | ✅ 可玩 | 控制小蛇吃食物，越长越快，小心撞墙和自己 |
 | `tetris` | 俄罗斯方块 | `games/tetris/index.html` | ✅ 可玩 | 移动、旋转方块填满整行消除，等级越高越快 |
 | `mota`   | 魔塔     | `games/mota/index.html`   | ✅ 可玩 | 三十层迷宫魔塔，有的怪能绕开，高级门要回去再开 |
-| `2048`   | 2048     | `games/2048/index.html`   | ✅ 可玩 | 滑动合并相同数字，目标 2048，之后还可以继续 |
+| `2048`   | 2048     | `games/2048/index.html`   | ✅ 可玩 | 方块滑过去再合并，格子一样大，到 2048 后还可以继续 |
 | `sudoku` | 数独     | `games/sudoku/index.html` | ✅ 可玩 | 每行、每列、每宫填入 1–9 且不重复，含简单到困难 |
-| `minesweeper` | 扫雷 | `games/minesweeper/index.html` | ✅ 可玩 | 按数字找地雷，第一下安全，支持初级到高级 |
-| `sokoban` | 推箱子  | `games/sokoban/index.html` | ✅ 可玩 | 把箱子推上目标点，可撤销，共 36 关 |
-| `dino`   | 小恐龙   | `games/dino/index.html`   | ✅ 可玩 | 跳跃躲避仙人掌和飞鸟，越跑越快 |
+| `minesweeper` | 扫雷 | `games/minesweeper/index.html` | ✅ 可玩 | 方格棋盘，按数字找地雷，第一下安全，支持初级到高级 |
+| `sokoban` | 推箱子  | `games/sokoban/index.html` | ✅ 可玩 | 砖墙木箱，把箱子推到绿色叉上，可撤销，共 15 关 |
+| `dino`   | 小恐龙   | `games/dino/index.html`   | ✅ 可玩 | 彩色场景里跳跃躲避仙人掌和飞鸟，越跑越快 |
 | `chess`  | 国际象棋 | `games/chess/index.html`  | ✅ 可玩 | 含易位、吃过路兵、升变，可人机或双人 |
 | `solitaire` | 纸牌 | `games/solitaire/index.html` | ✅ 可玩 | 克朗代克纸牌，翻一张或三张，收到四门花色 |
 | `xiangqi` | 中国象棋 | `games/xiangqi/index.html` | ✅ 可玩 | 标准棋规，可人机或双人，红方在下 |
@@ -37,6 +37,7 @@
 │   ├── chess/index.html    # 国际象棋
 │   ├── solitaire/index.html # 纸牌
 │   └── xiangqi/index.html  # 中国象棋
+├── .gitignore
 ├── README.md
 └── LICENSE
 ```
