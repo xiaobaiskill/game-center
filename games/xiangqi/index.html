@@ -19,9 +19,30 @@
   }
   h1 { letter-spacing: 4px; color: #7ce7ff; margin-bottom: 8px; text-align: center; }
   .layout { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
-  canvas { width: min(92vw, 440px); height: auto; border-radius: 8px; background: #e7c48a; touch-action: manipulation; cursor: pointer; }
+  .board-wrap { position: relative; width: min(92vw, 440px); }
+  canvas { width: 100%; height: auto; border-radius: 8px; background: #e7c48a; touch-action: manipulation; cursor: pointer; display: block; }
+  .banner {
+    position: absolute; left: 50%; z-index: 2; pointer-events: none;
+    text-align: center; padding: 10px 18px; border-radius: 12px;
+    background: rgba(28, 14, 10, 0.88); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+  .banner b { display: block; font-size: 34px; letter-spacing: 6px; line-height: 1.15; }
+  .banner small { display: block; margin-top: 4px; font-size: 14px; color: #f6e7c8; letter-spacing: 1px; }
+  .banner.check { top: 12px; transform: translateX(-50%); border: 3px solid #e23b3b; }
+  .banner.check b { color: #ff5a5a; }
+  .banner.win, .banner.lose, .banner.draw { top: 42%; transform: translate(-50%, -50%); min-width: 168px; padding: 18px 22px; }
+  .banner.win { border: 3px solid #e6b325; }
+  .banner.win b { color: #ffd166; }
+  .banner.lose { border: 3px solid #e23b3b; }
+  .banner.lose b { color: #ff8a8a; }
+  .banner.draw { border: 3px solid #9ec9e0; }
+  .banner.draw b { color: #d7eef5; }
+  .banner.hidden { display: none; }
   .side { width: min(92vw, 240px); }
   .status { min-height: 48px; font-size: 18px; color: #ffd166; margin-bottom: 10px; }
+  .status.check, .status.lose { color: #ff6b6b; font-size: 28px; font-weight: 800; letter-spacing: 4px; }
+  .status.win { color: #ffd166; font-size: 28px; font-weight: 800; letter-spacing: 4px; }
+  .status.draw { color: #d7eef5; font-size: 28px; font-weight: 800; letter-spacing: 4px; }
   .modes, .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
   button {
     border: 1px solid #2c5364; background: rgba(255,255,255,.06); color: #e6f7ff;
@@ -37,19 +58,27 @@
   <div>
     <h1>中国象棋</h1>
     <div class="layout">
-      <canvas id="board" width="440" height="488"></canvas>
+      <div class="board-wrap">
+        <canvas id="board" width="440" height="488"></canvas>
+        <div id="banner" class="banner hidden"></div>
+      </div>
       <div class="side">
         <div class="status" id="status">红方行棋</div>
         <div class="modes">
           <button type="button" id="aiBtn" class="active">人机</button>
           <button type="button" id="pvpBtn">双人</button>
         </div>
+        <div class="modes" id="diffBar">
+          <button type="button" data-diff="easy">简单</button>
+          <button type="button" data-diff="mid" class="active">一般</button>
+          <button type="button" data-diff="hard">困难</button>
+        </div>
         <div class="actions">
           <button type="button" class="primary" id="newBtn">新局</button>
           <button type="button" id="undoBtn">悔棋</button>
         </div>
         <div id="log"></div>
-        <div class="hint">红方在下。马别腿、象别眼、炮打隔山。不能送将，将帅不可照面。无子可走判负。同一局面三次作和。</div>
+        <div class="hint">选中棋子后，绿点是能走的空位，红圈是能吃的子，棋子会滑过去。简单、一般、困难只影响电脑。红方在下。马别腿、象别眼、炮打隔山。</div>
       </div>
     </div>
   </div>
@@ -174,11 +203,20 @@
     if (p.t === 'N' || p.t === 'C') extra += (4 - Math.abs(4 - c)) * 6;
     return VAL[p.t] + extra;
   }
-  function evaluate(state) {
+  function evaluate(state, rich) {
     let s = 0;
     for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
       const p = state.board[r][c];
-      if (p) s += (p.c === 'r' ? 1 : -1) * value(p, r, c);
+      if (!p) continue;
+      let v = value(p, r, c);
+      if (rich) {
+        const forward = p.c === 'r' ? 9 - r : r;
+        if (p.t === 'R' || p.t === 'C') v += forward * 4;
+        if (p.t === 'N' && forward >= 3) v += 24;
+        if (p.t === 'P' && forward >= 5) v += 30;
+        if ((p.t === 'A' || p.t === 'B') && forward > 2) v -= 40;
+      }
+      s += (p.c === 'r' ? 1 : -1) * v;
     }
     return state.turn === 'r' ? s : -s;
   }
@@ -188,29 +226,39 @@
       return (vb ? VAL[vb.t] : 0) - (va ? VAL[va.t] : 0);
     });
   }
-  function negamax(state, depth, alpha, beta, ply, deadline) {
+  function negamax(state, depth, alpha, beta, ply, deadline, rich) {
     if (Date.now() > deadline) return 0;
-    if (depth === 0) return evaluate(state);
+    if (depth === 0) return evaluate(state, rich);
     const moves = order(state, legal(state));
     if (!moves.length) return -100000 + ply;
     let best = -Infinity;
     for (const m of moves) {
-      const score = -negamax(apply(state, m), depth - 1, -beta, -alpha, ply + 1, deadline);
+      const score = -negamax(apply(state, m), depth - 1, -beta, -alpha, ply + 1, deadline, rich);
       if (score > best) best = score;
       if (score > alpha) alpha = score;
       if (alpha >= beta) break;
     }
     return best;
   }
-  function choose(state) {
-    const deadline = Date.now() + 380;
-    let best = legal(state)[0] || null;
-    for (let d = 1; d <= 2; d++) {
-      const moves = order(state, legal(state));
+  function choose(state, diff) {
+    const moves = order(state, legal(state));
+    if (!moves.length) return null;
+    if (diff === 'easy') {
+      const ranked = moves.map(m => ({ m, score: -evaluate(apply(state, m), false) }));
+      ranked.sort((a, b) => b.score - a.score);
+      const band = ranked.filter(x => ranked[0].score - x.score <= 80);
+      const pool = band.length ? band : ranked.slice(0, 3);
+      return pool[Math.floor(Math.random() * pool.length)].m;
+    }
+    const rich = diff === 'hard';
+    const maxDepth = rich ? 4 : 2;
+    const deadline = Date.now() + (rich ? 900 : 420);
+    let best = moves[0];
+    for (let d = 1; d <= maxDepth; d++) {
       let cur = null, bestScore = -Infinity, alpha = -Infinity, done = true;
       for (const m of moves) {
         if (Date.now() > deadline) { done = false; break; }
-        const score = -negamax(apply(state, m), d - 1, -Infinity, -alpha, 1, deadline);
+        const score = -negamax(apply(state, m), d - 1, -Infinity, -alpha, 1, deadline, rich);
         if (Date.now() > deadline) { done = false; break; }
         if (score > bestScore) { bestScore = score; cur = m; }
         if (score > alpha) alpha = score;
@@ -241,10 +289,16 @@
   const canvas = document.getElementById('board');
   const ctx = canvas.getContext('2d');
   const statusEl = document.getElementById('status');
+  const bannerEl = document.getElementById('banner');
   const logEl = document.getElementById('log');
-  let mode = 'ai', state, history, log, sel, last, over, result, thinking, thinkToken = 0;
+  let mode = 'ai', diff = localStorage.getItem('gc_xiangqi_diff') || 'mid';
+  if (!['easy', 'mid', 'hard'].includes(diff)) diff = 'mid';
+  let state, history, log, sel, last, over, result, thinking, thinkToken = 0, anim = null, raf = 0;
 
   function start() {
+    if (anim) clearTimeout(anim.timer);
+    anim = null;
+    cancelAnimationFrame(raf);
     state = initial(); history = []; log = []; sel = null; last = null; over = false; result = '';
     thinking = false; thinkToken++;
     draw();
@@ -263,8 +317,26 @@
     }
     if (repeats() >= 3) { over = true; result = '三次重复，和棋'; }
   }
-  function play(move) {
-    if (over || thinking) return;
+  function ease(p) { return 1 - Math.pow(1 - p, 3); }
+  function beginMove(move) {
+    if (over || anim) return;
+    anim = { move, t0: performance.now(), dur: 220 };
+    sel = null;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(stepAnim);
+    anim.timer = setTimeout(() => finishMove(move), 280);
+  }
+  function stepAnim(now) {
+    if (!anim) return;
+    const p = Math.min(1, (now - anim.t0) / anim.dur);
+    draw(ease(p));
+    if (p < 1) raf = requestAnimationFrame(stepAnim);
+    else finishMove(anim.move);
+  }
+  function finishMove(move) {
+    if (!anim || anim.move !== move) return;
+    clearTimeout(anim.timer);
+    anim = null;
     history.push(state);
     log.push(describe(state, move));
     state = apply(state, move);
@@ -273,41 +345,51 @@
     draw();
     if (!over && mode === 'ai' && state.turn === 'b') think();
   }
+  function play(move) {
+    if (over || thinking || anim) return;
+    beginMove(move);
+  }
   function think() {
     const token = ++thinkToken;
+    const snap = state;
+    const diffNow = diff;
     thinking = true;
     statusEl.textContent = '电脑思考中…';
     setTimeout(() => {
       if (token !== thinkToken) return;
-      const move = choose(state);
+      const move = choose(snap, diffNow);
       thinking = false;
-      if (!move) { draw(); return; }
-      history.push(state);
-      log.push(describe(state, move));
-      state = apply(state, move);
-      last = move;
-      finishIfEnded();
-      draw();
-    }, 20);
+      if (!move || token !== thinkToken) { draw(); return; }
+      beginMove(move);
+    }, diffNow === 'easy' ? 160 : 30);
   }
   function undo() {
-    if (thinking) return;
+    const sliding = anim;
+    if (anim) { clearTimeout(anim.timer); anim = null; cancelAnimationFrame(raf); }
     thinkToken++;
+    thinking = false;
+    if (sliding && state.turn === 'r') { draw(); return; }
+    if (sliding && mode === 'ai') {
+      if (history.length) { state = history.pop(); log.pop(); }
+      over = false; result = ''; sel = null; last = null;
+      draw();
+      return;
+    }
     if (mode === 'ai') {
       if (state.turn === 'r' && history.length >= 2) {
         state = history[history.length - 2];
         history.length -= 2;
         log.splice(-2, 2);
-      } else return;
+      } else { draw(); return; }
     } else if (history.length) {
       state = history.pop();
       log.pop();
-    } else return;
+    } else { draw(); return; }
     over = false; result = ''; sel = null; last = null;
     draw();
   }
   function onPoint(r, c) {
-    if (over || thinking) return;
+    if (over || thinking || anim) return;
     if (mode === 'ai' && state.turn !== 'r') return;
     if (!on(r, c)) return;
     if (sel) {
@@ -319,7 +401,28 @@
     draw();
   }
   function xy(r, c) { return [PAD + c * CELL, PAD + r * CELL]; }
-  function draw() {
+  function drawPiece(x, y, p, picked) {
+    ctx.beginPath();
+    ctx.fillStyle = '#f8efd8';
+    ctx.arc(x, y, 20, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = picked ? 3.5 : 1.6;
+    ctx.strokeStyle = p.c === 'r' ? '#c0392b' : '#222';
+    ctx.stroke();
+    if (picked) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#e6b325';
+      ctx.lineWidth = 3;
+      ctx.arc(x, y, 24, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = p.c === 'r' ? '#c0392b' : '#222';
+    ctx.font = '20px "KaiTi", "STKaiti", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(NAME[p.c][p.t], x, y + 1);
+  }
+  function draw(progress) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#e7c48a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -350,15 +453,7 @@
       const [x, y] = xy(r, c);
       ctx.strokeRect(x - 4, y - 4, 8, 8);
     });
-    const hints = sel && !over ? legal(state).filter(m => m.fr === sel.r && m.fc === sel.c) : [];
-    hints.forEach(m => {
-      const [x, y] = xy(m.tr, m.tc);
-      ctx.beginPath();
-      ctx.fillStyle = state.board[m.tr][m.tc] ? 'rgba(180,40,40,.35)' : 'rgba(40,120,40,.45)';
-      ctx.arc(x, y, state.board[m.tr][m.tc] ? 18 : 6, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    if (last) {
+    if (last && !anim) {
       [ [last.fr, last.fc], [last.tr, last.tc] ].forEach(([r, c]) => {
         const [x, y] = xy(r, c);
         ctx.strokeStyle = 'rgba(20,90,40,.55)';
@@ -366,27 +461,76 @@
         ctx.strokeRect(x - 22, y - 22, 44, 44);
       });
     }
+    const moving = anim ? state.board[anim.move.fr][anim.move.fc] : null;
     for (let r = 0; r < 10; r++) for (let c = 0; c < 9; c++) {
+      if (anim && r === anim.move.fr && c === anim.move.fc) continue;
       const p = state.board[r][c];
       if (!p) continue;
       const [x, y] = xy(r, c);
-      ctx.beginPath();
-      ctx.fillStyle = '#f8efd8';
-      ctx.arc(x, y, 20, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.lineWidth = sel && sel.r === r && sel.c === c ? 3.5 : 1.6;
-      ctx.strokeStyle = p.c === 'r' ? '#c0392b' : '#222';
-      ctx.stroke();
-      ctx.fillStyle = p.c === 'r' ? '#c0392b' : '#222';
-      ctx.font = '20px "KaiTi", "STKaiti", serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(NAME[p.c][p.t], x, y + 1);
+      drawPiece(x, y, p, sel && sel.r === r && sel.c === c);
     }
-    const checked = !over && inCheck(state.board, state.turn);
-    if (over) statusEl.textContent = result;
-    else if (thinking) statusEl.textContent = '电脑思考中…';
-    else statusEl.textContent = (state.turn === 'r' ? '红方' : '黑方') + '行棋' + (checked ? '，将军' : '');
+    if (anim && moving) {
+      const [x0, y0] = xy(anim.move.fr, anim.move.fc);
+      const [x1, y1] = xy(anim.move.tr, anim.move.tc);
+      const t = progress == null ? 1 : progress;
+      drawPiece(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, moving, false);
+    }
+    if (sel && !over && !anim) {
+      legal(state).filter(m => m.fr === sel.r && m.fc === sel.c).forEach(m => {
+        const [x, y] = xy(m.tr, m.tc);
+        const cap = state.board[m.tr][m.tc];
+        if (cap) {
+          ctx.beginPath();
+          ctx.strokeStyle = '#d32f2f';
+          ctx.lineWidth = 3;
+          ctx.arc(x, y, 24, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.fillStyle = '#2ea043';
+          ctx.arc(x, y, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.fillStyle = '#fff';
+          ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+    }
+    const checked = !over && !anim && inCheck(state.board, state.turn);
+    if (checked) {
+      const king = findKing(state.board, state.turn);
+      if (king) {
+        const [kx, ky] = xy(king.r, king.c);
+        ctx.beginPath();
+        ctx.strokeStyle = '#e23b3b';
+        ctx.lineWidth = 4;
+        ctx.arc(kx, ky, 26, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    statusEl.className = 'status';
+    if (over) {
+      const drawGame = result.indexOf('和棋') !== -1;
+      const redWins = result.indexOf('红方胜') !== -1;
+      const title = drawGame ? '和棋' : (mode === 'ai' ? (redWins ? '你赢了' : '你输了') : (redWins ? '红方赢了' : '黑方赢了'));
+      const kind = drawGame ? 'draw' : (mode === 'ai' && !redWins ? 'lose' : 'win');
+      bannerEl.className = 'banner ' + kind;
+      bannerEl.innerHTML = '<b>' + title + '</b><small>' + result + '</small>';
+      statusEl.textContent = title;
+      statusEl.classList.add(kind);
+    } else if (checked) {
+      const who = state.turn === 'r' ? '红方' : '黑方';
+      bannerEl.className = 'banner check';
+      bannerEl.innerHTML = '<b>将军</b><small>' + who + '被将军</small>';
+      statusEl.textContent = '将军';
+      statusEl.classList.add('check');
+    } else {
+      bannerEl.className = 'banner hidden';
+      bannerEl.innerHTML = '';
+      if (thinking || anim) statusEl.textContent = thinking ? '电脑思考中…' : ((state.turn === 'r' ? '红方' : '黑方') + '走子');
+      else statusEl.textContent = (state.turn === 'r' ? '红方' : '黑方') + '行棋';
+    }
     logEl.innerHTML = log.map(t => '<div>' + t + '</div>').join('');
     logEl.scrollTop = logEl.scrollHeight;
   }
@@ -400,6 +544,14 @@
   document.getElementById('pvpBtn').onclick = () => { mode = 'pvp'; document.getElementById('pvpBtn').classList.add('active'); document.getElementById('aiBtn').classList.remove('active'); start(); };
   document.getElementById('newBtn').onclick = start;
   document.getElementById('undoBtn').onclick = undo;
+  document.querySelectorAll('#diffBar button').forEach(b => b.classList.toggle('active', b.dataset.diff === diff));
+  document.getElementById('diffBar').onclick = (e) => {
+    const next = e.target.dataset.diff;
+    if (!next) return;
+    diff = next;
+    localStorage.setItem('gc_xiangqi_diff', next);
+    document.querySelectorAll('#diffBar button').forEach(b => b.classList.toggle('active', b.dataset.diff === diff));
+  };
   start();
 })();
 </script>

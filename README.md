@@ -12,11 +12,9 @@
 | `2048`   | 2048     | `games/2048/index.html`   | ✅ 可玩 | 方块滑过去再合并，格子一样大，到 2048 后还可以继续 |
 | `sudoku` | 数独     | `games/sudoku/index.html` | ✅ 可玩 | 每行、每列、每宫填入 1–9 且不重复，含简单到困难 |
 | `minesweeper` | 扫雷 | `games/minesweeper/index.html` | ✅ 可玩 | 方格棋盘，按数字找地雷，第一下安全，支持初级到高级 |
-| `sokoban` | 推箱子  | `games/sokoban/index.html` | ✅ 可玩 | 砖墙木箱，把箱子推到绿色叉上，可撤销，共 15 关 |
+| `sokoban` | 推箱子  | `games/sokoban/index.html` | ✅ 可玩 | 砖墙木箱，一百关，可撤销 |
 | `dino`   | 小恐龙   | `games/dino/index.html`   | ✅ 可玩 | 彩色场景里跳跃躲避仙人掌和飞鸟，越跑越快 |
-| `chess`  | 国际象棋 | `games/chess/index.html`  | ✅ 可玩 | 含易位、吃过路兵、升变，可人机或双人 |
-| `solitaire` | 纸牌 | `games/solitaire/index.html` | ✅ 可玩 | 克朗代克纸牌，翻一张或三张，收到四门花色 |
-| `xiangqi` | 中国象棋 | `games/xiangqi/index.html` | ✅ 可玩 | 标准棋规，可人机或双人，红方在下 |
+| `xiangqi` | 中国象棋 | `games/xiangqi/index.html` | ✅ 可玩 | 落点提示、走子滑动，电脑分简单、一般、困难 |
 
 > 新增游戏时：在 `games/` 下以「内部标识」为名建立文件夹（内含 `index.html`），并在根目录 `index.html` 的游戏列表中加入对应卡片。
 
@@ -34,8 +32,6 @@
 │   ├── minesweeper/index.html # 扫雷
 │   ├── sokoban/index.html  # 推箱子
 │   ├── dino/index.html     # 小恐龙
-│   ├── chess/index.html    # 国际象棋
-│   ├── solitaire/index.html # 纸牌
 │   └── xiangqi/index.html  # 中国象棋
 ├── .gitignore
 ├── README.md
