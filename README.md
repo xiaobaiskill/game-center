@@ -8,7 +8,7 @@
 | :------: | :------: | :------: | :--: | :--- |
 | `snake`  | 贪吃蛇   | `games/snake/index.html`  | ✅ 可玩 | 控制小蛇吃食物，越长越快，小心撞墙和自己 |
 | `tetris` | 俄罗斯方块 | `games/tetris/index.html` | ✅ 可玩 | 移动、旋转方块填满整行消除，等级越高越快 |
-| `mota`   | 魔塔     | `games/mota/index.html`   | ✅ 可玩 | 三十层魔塔，三色钥匙、商店和图鉴，从塔门一路打到魔王殿 |
+| `mota`   | 魔塔     | `games/mota/index.html`   | ✅ 可玩 | 三十层迷宫魔塔，有的怪能绕开，高级门要回去再开 |
 | `2048`   | 2048     | `games/2048/index.html`   | ✅ 可玩 | 滑动合并相同数字，目标 2048，之后还可以继续 |
 | `sudoku` | 数独     | `games/sudoku/index.html` | ✅ 可玩 | 每行、每列、每宫填入 1–9 且不重复，含简单到困难 |
 | `minesweeper` | 扫雷 | `games/minesweeper/index.html` | ✅ 可玩 | 按数字找地雷，第一下安全，支持初级到高级 |

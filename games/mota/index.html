@@ -56,6 +56,19 @@
   .stat-row .num.atk { color: #ff8c5a; }
   .stat-row .num.def { color: #5ab0ff; }
   .keys-row { display: flex; justify-content: space-around; margin-top: 6px; }
+  .pot-row { display: flex; gap: 6px; margin-top: 8px; }
+  .pot-row button {
+    flex: 1;
+    border: 1px solid #6a4c7e;
+    background: rgba(255, 255, 255, 0.08);
+    color: #f3e9ff;
+    border-radius: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .pot-row button:hover { background: rgba(255, 209, 102, 0.22); }
   .key-chip { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 13px; font-weight: bold; }
   .key-chip .kn { color: #d8c8e8; }
   .log { height: 118px; overflow-y: auto; font-size: 12.5px; line-height: 1.7; color: #d8c8e8; }
@@ -202,9 +215,9 @@
       <canvas id="tower" width="484" height="484"></canvas>
       <div class="overlay" id="startOverlay">
         <h2>魔 塔</h2>
-        <p>三十层。黄、蓝、红三把钥匙，商店会越买越贵。<br>
-           图鉴能预览伤害，打不过就下楼。<br>
-           进度记在这台浏览器里。</p>
+        <p>三十层都是弯路。有的怪可以绕开，有的挡死上楼的路。<br>
+           低层有的门，钥匙在更高的楼。下去再开，里面才是宝物。<br>
+           圣水可以回血，也可以炼成攻击。魔王要算清楚再打。</p>
         <button class="main-btn" id="startBtn">进入魔塔</button>
         <button class="main-btn alt hidden" id="continueBtn">继续冒险</button>
       </div>
@@ -230,12 +243,17 @@
           <div class="key-chip"><canvas width="30" height="30" id="kcQ"></canvas><span class="kn" id="keyQ">蓝 ×0</span></div>
           <div class="key-chip"><canvas width="30" height="30" id="kcZ"></canvas><span class="kn" id="keyZ">红 ×0</span></div>
         </div>
+        <div class="pot-row">
+          <button type="button" id="drinkP">红药 0</button>
+          <button type="button" id="drinkB">蓝药 0</button>
+          <button type="button" id="drinkH">圣水 0</button>
+        </div>
       </div>
       <div class="panel inspect" id="inspect">点地图上的格子，可以提前看怪物会打掉多少血。</div>
       <div class="panel"><div class="log" id="log"></div></div>
       <div class="panel controls">
         <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 或 <kbd>WASD</kbd> 移动 · <kbd>M</kbd> 图鉴<br>
-        走到道具上会捡起。假墙有裂缝，可以直接走过去。
+        红药 <kbd>1</kbd>、蓝药 <kbd>2</kbd>、圣水 <kbd>3</kbd>。药水不会自动喝。假墙有裂缝。
         <div class="tool-row">
           <button type="button" id="bookBtn">图鉴</button>
           <button type="button" id="saveBtn">存档</button>
@@ -280,7 +298,8 @@
   const canvas = document.getElementById('tower');
   let ctx = canvas.getContext('2d');
   const COLS = 11, ROWS = 11, TILE = 44;
-  const SAVE_KEY = 'gc-mota-30-v1';
+  const SAVE_KEY = 'gc-mota-30-v3';
+  const POTION_KEYS = { p: true, P: true, '8': true };
 
   const floorNameEl = document.getElementById('floorName');
   const hpNum = document.getElementById('hpNum');
@@ -310,69 +329,69 @@
   ];
 
   const MAP_SRC = [
-    grid(['^.t...p..','y########','g.j..g...','.........','a.d..t...','.........','Y........','....j..$.','@........']),
-    grid(['^..a...p.','##y######','.g.......','N..j.....','..d..t...','Y........','..k......','.a..Y.d..','v....$...']),
-    grid(['^...h...p','###y#####','..g.t....','.a..j....','.1.......','..d......','Y...t....','.p.Y..a.$','v........']),
-    grid(['^#j...a.p','y#.......','g#..j....','.#..d....','.#....Y..','t#.......','Y#..j....','..#...$..','v....a...']),
-    grid(['^..Q...p.','##y##q###','..k......','N.a..b...','..d......','Y....Q...','..j......','.A..Y.D.P','v....$...']),
-    grid(['^..b...s.','####y####','..k......','.a..k....','..d......','..b....Y.','Y........','.p.A..d.P','v....$...']),
-    grid(['^.o....a.','y########','k........','..b..d...','.o.......','....Y....','Y..u.....','.A.D.p...','v....$...']),
-    grid(['.w..#^.##','##z##y###','..o....##','N......##','.......=&','.Q..d..##','Y..Z...##','.A.Y.D.##','v....$.##']),
-    grid(['^..c...w.','####y####','..b......','..o..A...','....d....','..u......','Y........','.s.Y.P.a.','v....$...']),
-    grid(['X^.......','z########','..c......','....Z....','..b..A...','..D......','Y........','.P.s....$','v........']),
-    grid(['^..n...A.','y###.####','.n..#....','....#..D.','..m.#....','....#..P.','Y...#....','.A.D#.$..','v........']),
-    grid(['^..m...P.','##y######','.n.......','N..r.....','..A......','....D....','Y....i...','.f..Y.%..','v........']),
-    grid(['^.r....A.','y########','.n.......','.2..m....','..D......','....Y....','Y..r.....','.P.f.i...','v....%...']),
-    grid(['^#m...f.P','y#.......','.#..m....','n#.......','.#..D....','.#....Y..','Y#..m....','..#...i..','v....A...']),
-    grid(['.f.i#^...','##z##y###','..V......','....A....','..r......','..D......','Y..Z.....','.P..Y.W..','v....%...']),
-    grid(['^..J...S.','####y####','..V......','N..A.....','..D......','....m....','Y........','.f.i.P.Y.','v....%...']),
-    grid(['^.K....W.','y########','.J.......','....U....','..A......','..i......','Y........','.D.f..P..','v....%...']),
-    grid(['^..K.f.##','y########','....J..##','.2.....##','.......=&','.D.....##','Y......##','.i.W.P.##','v....%.##']),
-    grid(['^..U...W.','##y######','.K.......','....J....','..f......','..i......','Y........','.S.A.D.P.','v....%...']),
-    grid(['L^.......','z########','..K......','....Z....','..U......','..f.i....','Y........','.W.S.8.%.','v........']),
-    grid(['^.x....f.','y########','.e.......','....i....','..E......','....Y....','Y........','.f.i.8.P.','v....%...']),
-    grid(['^.x.F..i.','##y######','.e.......','N........','..f......','....E....','Y........','.A.D.8.Y.','v....&...']),
-    grid(['^..F...7.','y########','.C.......','.3..e....','..i......','....f....','Y........','.S..8..Y.','v....&...']),
-    grid(['^..C...i.','####y####','.R.......','....F....','..f......','....e....','Y........','.S.D.P.Y.','v....%...']),
-    grid(['x..#^..8.','##z##y###','.R.......','....C....','..f......','..i......','Y..Z.....','.7..Y.W..','v....&...']),
-    grid(['^..B...f.','####y####','.R.......','N..E.....','..i......','.........','Y........','.8.S.7.Y.','v....&...']),
-    grid(['^..B...x.','y########','.E.......','.3.......','..F......','....i....','Y........','.f.8..Y..','v....&...']),
-    grid(['^..F.i.##','y########','....B..##','..R....##','.......=&','..f....##','Y......##','.7.S...##','v....%..#']),
-    grid(['^+.B...8.','##y######','.R.......','N..f..3..','..i......','....E....','Y........','.x.7..Y..','v....&...']),
-    grid(['O........','.........','..B...8..','.........','....R....','.........','..f...i..','...+.....','v........'])
+    grid(['@#^j..y..','a###.#.#k','d$.#.#.#Y','##.###.#.','.#.....#.','.#=#####.','.........','.#.###.##','.#.......']),
+    grid(['v#......N','a#.#.####','d$.#.....','.#.###=#.','.#.#...#.','.#q#.#.#t','.#A#.#...','.###.###Y','.....#^jy']),
+    grid(['v#1......','a#####.#.','d$...#.#.','####.#y#g','.....#.#^','.###=#.##','.#.......','t#.#.###.','Y..#.....']),
+    grid(['vaA....=.','d#####.#.','...qw#.#.','.#####.#.','.#...#...','.#.#.###.','...#..Yg.','.########','...y...t^']),
+    grid(['vadA.....','########.','^t...#...','##.#.#.##','.....#...','.#####=#.','...#...#.','.#.#y#.#.','N#...#.jY']),
+    grid(['v=.......','a#.#####.','d#.qf#...','A#.###.#.','.#1#Y....','.###g###.','.#...#^#.','.#.###g#.','...#....y']),
+    grid(['v#.......','A###.###.','Dw.#.t^#y','##.#####Y','D#.....#.','q#.#.#.#.','...#.=...','.###.###.','.....#.j.']),
+    grid(['v#.......','A#.###=#.','Dw.#N..#.','##.###.#.','^#.....#Y','t#.#.###j','.#.#.....','.#.######','..y......']),
+    grid(['vADw...#t','######.#.','.....#...','.#######.','.......#.','.###.#.#.','.#^#.=yYQ','.#j#.#.##','...#.....']),
+    grid(['vws#fz...','##%###.#.','.......#.','.#######.','...#1#...','.#.#.#.##','.#...#Y#^','.#=###t#j','.......y.']),
+    grid(['v#...#...','w#.#.#.#.','s%.#.....','########.','.....#...','.###.#.##','.#^j.#.=k','.#####.#Q','.....y..Y']),
+    grid(['vws%.#Yo.','##.#.#.#.','...#.#.=.','.#z#.###.','.#S#.....','.#######.','.....#...','.###.#.##','..N#..uy^']),
+    grid(['v#......Y','f#o#.###.','i#2#.....','D###.#.##','.....#.#^','##=###.#u','.......#.','.#######.','..y......']),
+    grid(['v#^o...#.','f###.#.#.','iD.#.#...','##.#.###.','.#.#.....','.#.#####.','.#.....#.','u###=#.#.','YQ.....y.']),
+    grid(['vfi#...#.','##D#.#.#.','.=...#...','.#######.','.......#.','.###.###.','...#...oY','z#.#.####','x#...y.u^']),
+    grid(['vfW#N..nY','##S###=#.','^#.#.....','m#.#.###y','.#...#...','.#####.#.','.#.....#.','.#.#####.','.........']),
+    grid(['v#^n.y..2','f#####.##','WS...#...','=###.#.#.','.#.....#m','.#.#####Q','.#.....#Y','.#####.#.','.........']),
+    grid(['vfW=.....','##S#.#.#.','...#...#.','.###.###.','.#...#^#.','.#z#.#c#.','.#7#.#.#y','.###.#.#.','.nY..#...']),
+    grid(['vWi#.#...','##%#.#.#.','^#.#...#.','n#.###.#.','.#...#.#.','.###.#.#.','...#...#.','.#.#.###.','.=..y..mY']),
+    grid(['v#^#.....','W#c#.#.#.','i#.....#.','%#######.','.#......y','.#.###=#.','...#2#...','####n#.##','YZ.......']),
+    grid(['vWi#.....','##%#.#.#.','...#...=.','.###.###.','...#.#...','##.#n#.##','.#.#^#...','m#.#####.','......Yy.']),
+    grid(['vxf&.....','##.#####.','....N#...','.#####.##','.....#...','.###.#=#.','.#.#...oY','.#.######','..y....u^']),
+    grid(['v#3......','x###.###.','f&.....#.','######.#.','.m^#...#.','.###.###.','.#...#r..','.#.###Z#.','y.....Y=.']),
+    grid(['vxf#.....','##&#.###.','.#.#.#...','.#.#m#.##','...#^#.yY','.#######.','.=.......','.#.###.#.','...#....r']),
+    grid(['v#^m.....','x#######y','7..#...#Z','##.#.#.#.','.....#...','.###.###.','.....=.#Y','######.#.','3.r......']),
+    grid(['vx7#.....','##.#.###J','N#.#...#^','.#.#.#.##','.=.#.....','.#.#####y','.#.#.....','.#.#.###Y','.....#..K']),
+    grid(['v8.#mr...','##.#.#.#.','^#.#.#.#.','.#.###.#.','V#.....#.','Z#######.','.......#.','.#.#=###.','.........']),
+    grid(['v8.#.....','##.#.###.','...#.#...','.###.#.##','.#...#.#^','.#.###.#J','.KU#.#.#.','=#.#.#.#.','.........']),
+    grid(['v=...#...','8#c#.#.#.','n..#.#.#.','####.#.#m','.....#.#^','.#.###.##','...#N....','.#######.','.........']),
+    grid(['v........','########.','.........','.########','.........','########.','.........','.########','O........'])
   ];
 
   const MONSTERS = {
-    g: { name: '绿史莱姆', hp: 50, atk: 20, def: 1, gold: 1, exp: 1, look: 'slime', color: '#66dd72', dark: '#2a8a38' },
-    t: { name: '红史莱姆', hp: 70, atk: 24, def: 2, gold: 2, exp: 2, look: 'slime', color: '#ff7070', dark: '#b83838' },
-    h: { name: '大史莱姆', hp: 180, atk: 36, def: 8, gold: 5, exp: 4, look: 'slime', color: '#c084fc', dark: '#7c3aed', big: 1 },
-    j: { name: '小蝙蝠', hp: 100, atk: 22, def: 4, gold: 3, exp: 3, look: 'bat', color: '#a06cf0' },
-    m: { name: '大蝙蝠', hp: 400, atk: 210, def: 36, gold: 28, exp: 20, look: 'bat', color: '#5b21b6', big: 1 },
-    k: { name: '骷髅', hp: 150, atk: 40, def: 8, gold: 6, exp: 5, look: 'skull' },
-    b: { name: '骷髅士兵', hp: 220, atk: 58, def: 16, gold: 9, exp: 8, look: 'skull', tier: 1 },
-    c: { name: '骷髅队长', hp: 460, atk: 115, def: 32, gold: 20, exp: 16, look: 'skull', tier: 2 },
-    o: { name: '兽人', hp: 300, atk: 78, def: 22, gold: 12, exp: 10, look: 'orc' },
-    n: { name: '兽人武士', hp: 420, atk: 170, def: 36, gold: 24, exp: 18, look: 'orc', warrior: 1 },
-    u: { name: '见习法师', hp: 190, atk: 90, def: 12, gold: 12, exp: 9, look: 'mage', color: '#7dd3fc' },
-    U: { name: '大法师', hp: 640, atk: 470, def: 48, gold: 50, exp: 40, look: 'mage', color: '#c084fc', big: 1 },
-    F: { name: '红衣魔导', hp: 900, atk: 760, def: 70, gold: 80, exp: 72, look: 'mage', color: '#f87171', big: 1 },
-    r: { name: '石头人', hp: 680, atk: 230, def: 60, gold: 32, exp: 24, look: 'stone' },
-    C: { name: '石魔像', hp: 1800, atk: 700, def: 230, gold: 98, exp: 80, look: 'stone', big: 1 },
-    V: { name: '吸血鬼', hp: 820, atk: 320, def: 70, gold: 44, exp: 34, look: 'vamp' },
-    J: { name: '幽灵骑士', hp: 700, atk: 340, def: 60, gold: 38, exp: 30, look: 'ghost' },
-    K: { name: '铠甲骑士', hp: 820, atk: 410, def: 90, gold: 54, exp: 42, look: 'knight', color: '#e8eefc' },
-    e: { name: '双手剑士', hp: 1000, atk: 520, def: 140, gold: 64, exp: 52, look: 'knight', color: '#fdba74' },
-    E: { name: '暗黑骑士', hp: 1280, atk: 580, def: 170, gold: 84, exp: 68, look: 'knight', color: '#6d28d9' },
-    R: { name: '骑士团长', hp: 1500, atk: 840, def: 210, gold: 108, exp: 90, look: 'knight', color: '#fbbf24', elite: 1 },
-    B: { name: '魔龙卫', hp: 2200, atk: 1120, def: 300, gold: 136, exp: 110, look: 'dragon' },
-    X: { name: '守门巨人', hp: 820, atk: 158, def: 32, gold: 100, exp: 70, look: 'boss', boss: 'gate' },
-    L: { name: '塔之领主', hp: 1680, atk: 540, def: 150, gold: 220, exp: 160, look: 'boss', boss: 'lord' },
-    O: { name: '魔王', hp: 9600, atk: 1460, def: 480, gold: 0, exp: 500, look: 'boss', boss: 'king' }
+    g: { name: '绿史莱姆', hp: 42, atk: 20, def: 1, gold: 2, exp: 1, look: 'slime', color: '#66dd72', dark: '#2a8a38' },
+    t: { name: '红史莱姆', hp: 78, atk: 36, def: 3, gold: 3, exp: 2, look: 'slime', color: '#ff7070', dark: '#b83838' },
+    h: { name: '大史莱姆', hp: 200, atk: 64, def: 12, gold: 6, exp: 5, look: 'slime', color: '#c084fc', dark: '#7c3aed', big: 1 },
+    j: { name: '小蝙蝠', hp: 100, atk: 42, def: 6, gold: 4, exp: 3, look: 'bat', color: '#a06cf0' },
+    m: { name: '大蝙蝠', hp: 500, atk: 340, def: 64, gold: 30, exp: 22, look: 'bat', color: '#5b21b6', big: 1 },
+    k: { name: '骷髅', hp: 180, atk: 72, def: 16, gold: 7, exp: 6, look: 'skull' },
+    b: { name: '骷髅士兵', hp: 280, atk: 110, def: 28, gold: 11, exp: 9, look: 'skull', tier: 1 },
+    c: { name: '骷髅队长', hp: 560, atk: 220, def: 58, gold: 22, exp: 18, look: 'skull', tier: 2 },
+    o: { name: '兽人', hp: 380, atk: 150, def: 40, gold: 14, exp: 12, look: 'orc' },
+    n: { name: '兽人武士', hp: 520, atk: 280, def: 70, gold: 26, exp: 20, look: 'orc', warrior: 1 },
+    u: { name: '见习法师', hp: 240, atk: 180, def: 20, gold: 14, exp: 11, look: 'mage', color: '#7dd3fc' },
+    U: { name: '大法师', hp: 900, atk: 880, def: 90, gold: 56, exp: 44, look: 'mage', color: '#c084fc', big: 1 },
+    F: { name: '红衣魔导', hp: 1300, atk: 1400, def: 140, gold: 88, exp: 76, look: 'mage', color: '#f87171', big: 1 },
+    r: { name: '石头人', hp: 900, atk: 420, def: 120, gold: 36, exp: 28, look: 'stone' },
+    C: { name: '石魔像', hp: 2500, atk: 1280, def: 380, gold: 110, exp: 90, look: 'stone', big: 1 },
+    V: { name: '吸血鬼', hp: 1100, atk: 560, def: 140, gold: 48, exp: 36, look: 'vamp' },
+    J: { name: '幽灵骑士', hp: 980, atk: 600, def: 120, gold: 44, exp: 34, look: 'ghost' },
+    K: { name: '铠甲骑士', hp: 1300, atk: 760, def: 190, gold: 60, exp: 48, look: 'knight', color: '#e8eefc' },
+    e: { name: '双手剑士', hp: 1500, atk: 920, def: 240, gold: 72, exp: 58, look: 'knight', color: '#fdba74' },
+    E: { name: '暗黑骑士', hp: 1800, atk: 1100, def: 300, gold: 90, exp: 72, look: 'knight', color: '#6d28d9' },
+    R: { name: '骑士团长', hp: 2200, atk: 1500, def: 360, gold: 120, exp: 100, look: 'knight', color: '#fbbf24', elite: 1 },
+    B: { name: '魔龙卫', hp: 3000, atk: 1900, def: 500, gold: 150, exp: 120, look: 'dragon' },
+    X: { name: '守门巨人', hp: 2000, atk: 420, def: 110, gold: 160, exp: 100, look: 'boss', boss: 'gate' },
+    L: { name: '塔之领主', hp: 2800, atk: 1200, def: 320, gold: 260, exp: 180, look: 'boss', boss: 'lord' },
+    O: { name: '魔王', hp: 1800, atk: 614, def: 1233, gold: 0, exp: 500, look: 'boss', boss: 'king' }
   };
 
   const ITEMS = {
-    p: { name: '红药水', hp: 200 },
-    P: { name: '蓝药水', hp: 500 },
+    p: { name: '红药水', hp: 180 },
+    P: { name: '蓝药水', hp: 420 },
     '8': { name: '圣水', hp: 1400 },
     a: { name: '红宝石', atk: 2 },
     A: { name: '大红宝石', atk: 6 },
@@ -380,15 +399,15 @@
     d: { name: '蓝宝石', def: 2 },
     D: { name: '大蓝宝石', def: 6 },
     i: { name: '霜之石', def: 14 },
-    w: { name: '铁剑', atk: 12 },
-    W: { name: '钢剑', atk: 28 },
-    x: { name: '魔剑', atk: 65 },
-    s: { name: '铁盾', def: 12 },
-    S: { name: '钢盾', def: 28 },
-    '7': { name: '圣盾', def: 60 },
-    '$': { name: '小钱袋', gold: 15 },
-    '%': { name: '金币箱', gold: 45 },
-    '&': { name: '宝箱', gold: 100 },
+    w: { name: '铁剑', atk: 10 },
+    W: { name: '钢剑', atk: 26 },
+    x: { name: '魔剑', atk: 55 },
+    s: { name: '铁盾', def: 10 },
+    S: { name: '钢盾', def: 26 },
+    '7': { name: '圣盾', def: 48 },
+    '$': { name: '小钱袋', gold: 25 },
+    '%': { name: '金币箱', gold: 60 },
+    '&': { name: '宝箱', gold: 130 },
     '+': { name: '十字架', atk: 24, def: 24, hp: 900 },
     Y: { name: '黄钥匙', key: 'y' },
     Q: { name: '蓝钥匙', key: 'q' },
@@ -400,18 +419,18 @@
   const DOOR_COLOR = { y: '#e8c33a', q: '#4a90e0', z: '#e0485a' };
 
   const SHOPS = {
-    '1': { name: '旅店', base: 20, step: 15, goods: [
-      { id: 'hp', label: '生命 +250', hp: 250 },
+    '1': { name: '旅店', base: 20, step: 14, goods: [
+      { id: 'hp', label: '生命 +220', hp: 220 },
       { id: 'atk', label: '攻击 +2', atk: 2 },
       { id: 'def', label: '防御 +2', def: 2 }
     ]},
-    '2': { name: '铁匠铺', base: 45, step: 25, goods: [
-      { id: 'hp', label: '生命 +600', hp: 600 },
+    '2': { name: '铁匠铺', base: 48, step: 28, goods: [
+      { id: 'hp', label: '生命 +520', hp: 520 },
       { id: 'atk', label: '攻击 +5', atk: 5 },
       { id: 'def', label: '防御 +5', def: 5 }
     ]},
     '3': { name: '魔塔圣堂', base: 80, step: 40, goods: [
-      { id: 'hp', label: '生命 +1400', hp: 1400 },
+      { id: 'hp', label: '生命 +1100', hp: 1100 },
       { id: 'atk', label: '攻击 +10', atk: 10 },
       { id: 'def', label: '防御 +10', def: 10 }
     ]}
@@ -423,6 +442,7 @@
     return {
       hp: 1000, atk: 10, def: 10, gold: 0, exp: 0,
       keys: { y: 0, q: 0, z: 0 },
+      potions: { p: 0, P: 0, '8': 0 },
       fi: 0, px: 1, py: 1,
       altar: 0,
       shopBuys: { '1': 0, '2': 0, '3': 0 }
@@ -517,11 +537,18 @@
     }
     if (ITEMS[tile]) {
       const it = ITEMS[tile];
-      gain(it);
       floor[ty][tx] = '.';
       player.px = tx;
       player.py = ty;
-      log(itemText(it), 'good');
+      if (POTION_KEYS[tile]) {
+        player.potions[tile]++;
+        log(tile === '8'
+          ? '收起圣水。喝了加 1400 生命，交给二十九层的公主可以炼成 250 攻击。喝过就炼不了。'
+          : '收起' + it.name + '。先别喝，要用的时候按 ' + (tile === 'p' ? '1' : '2') + '。', 'gold');
+      } else {
+        gain(it);
+        log(itemText(it), 'good');
+      }
       commit();
       return;
     }
@@ -577,6 +604,16 @@
     return true;
   }
 
+  function drink(kind) {
+    if (!started || ended || modalOpen()) return;
+    const it = ITEMS[kind];
+    if (!player.potions[kind]) { log('没有' + it.name + '。', 'bad'); return; }
+    player.potions[kind]--;
+    player.hp += it.hp;
+    log('喝下' + it.name + '，生命 +' + it.hp + '。还剩 ' + player.potions[kind] + ' 瓶。', 'good');
+    commit();
+  }
+
   function commit() {
     updateHud();
     draw();
@@ -621,7 +658,7 @@
         choices: [
           { label: '攻击 +6', apply: () => { player.atk += 6; }, log: '老人点了点你的剑，攻击 +6。', remove: true },
           { label: '防御 +6', apply: () => { player.def += 6; }, log: '老人在你身上画了道符，防御 +6。', remove: true },
-          { label: '生命 +400', apply: () => { player.hp += 400; }, log: '老人替你稳住了气息，生命 +400。', remove: true },
+          { label: '生命 +400', apply: () => { player.hp += 400; }, log: '老人替你稳住了气息，生命 +400。后面的硬仗更吃攻击。', remove: true },
           leave
         ]
       };
@@ -629,10 +666,10 @@
     if (fi === 4) {
       return {
         title: '旅人',
-        text: '我这儿有两件旧货，20 金币一件。不买也行，我还坐这儿。',
+        text: '我这儿有两件旧货，25 金币一件。不买也行，我还坐这儿。',
         choices: [
-          { label: '20 金币，攻击 +12', can: () => player.gold >= 20, apply: () => { player.gold -= 20; player.atk += 12; }, log: '买下旧剑谱，攻击 +12。', remove: true },
-          { label: '20 金币，防御 +12', can: () => player.gold >= 20, apply: () => { player.gold -= 20; player.def += 12; }, log: '买下护心镜，防御 +12。', remove: true },
+          { label: '25 金币，攻击 +12', can: () => player.gold >= 25, apply: () => { player.gold -= 25; player.atk += 12; }, log: '买下旧剑谱，攻击 +12。', remove: true },
+          { label: '25 金币，防御 +12', can: () => player.gold >= 25, apply: () => { player.gold -= 25; player.def += 12; }, log: '买下护心镜，防御 +12。', remove: true },
           leave
         ]
       };
@@ -650,9 +687,9 @@
     if (fi === 11) {
       return {
         title: '仙女',
-        text: '泉水还没干。喝一口，攻击、防御各 +10，生命 +600。',
+        text: '泉水还没干。喝一口，攻击、防御各 +10，生命 +480。',
         choices: [
-          { label: '喝下泉水', apply: () => { player.atk += 10; player.def += 10; player.hp += 600; }, log: '泉水入喉，攻击 +10，防御 +10，生命 +600。', remove: true },
+          { label: '喝下泉水', apply: () => { player.atk += 10; player.def += 10; player.hp += 480; }, log: '泉水入喉，攻击 +10，防御 +10，生命 +480。', remove: true },
           leave
         ]
       };
@@ -661,12 +698,12 @@
       const left = 3 - player.altar;
       return {
         title: '经验祭坛',
-        text: '还可以供奉 ' + left + ' 次。每次 30 经验，攻击 +4，防御 +4，生命 +180。',
+        text: '还可以供奉 ' + left + ' 次。每次 36 经验，攻击 +4，防御 +4，生命 +180。',
         choices: [
           {
-            label: '供奉 30 经验',
-            can: () => player.altar < 3 && player.exp >= 30,
-            apply: () => { player.exp -= 30; player.atk += 4; player.def += 4; player.hp += 180; player.altar++; },
+            label: '供奉 36 经验',
+            can: () => player.altar < 3 && player.exp >= 36,
+            apply: () => { player.exp -= 36; player.atk += 4; player.def += 4; player.hp += 180; player.altar++; },
             log: '祭坛亮了一下。攻击 +4，防御 +4，生命 +180。',
             remove: false
           },
@@ -677,10 +714,10 @@
     if (fi === 21) {
       return {
         title: '黑市商人',
-        text: '上面的家伙不讲价。120 金币，攻击或防御 +28，你挑。',
+        text: '上面的家伙不讲价。140 金币，攻击或防御 +28。打魔王更吃攻击。',
         choices: [
-          { label: '120 金币，攻击 +28', can: () => player.gold >= 120, apply: () => { player.gold -= 120; player.atk += 28; }, log: '黑市的符文烫进剑里，攻击 +28。', remove: true },
-          { label: '120 金币，防御 +28', can: () => player.gold >= 120, apply: () => { player.gold -= 120; player.def += 28; }, log: '黑市的甲片扣上了，防御 +28。', remove: true },
+          { label: '140 金币，攻击 +28', can: () => player.gold >= 140, apply: () => { player.gold -= 140; player.atk += 28; }, log: '黑市的符文烫进剑里，攻击 +28。', remove: true },
+          { label: '140 金币，防御 +28', can: () => player.gold >= 140, apply: () => { player.gold -= 140; player.def += 28; }, log: '黑市的甲片扣上了，防御 +28。', remove: true },
           leave
         ]
       };
@@ -688,19 +725,39 @@
     if (fi === 25) {
       return {
         title: '智者',
-        text: '把 80 点经验交给我。攻击 +20，防御 +20，生命 +800。',
+        text: '把 100 点经验交给我。攻击 +20，防御 +20，生命 +640。',
         choices: [
-          { label: '交出 80 经验', can: () => player.exp >= 80, apply: () => { player.exp -= 80; player.atk += 20; player.def += 20; player.hp += 800; }, log: '智者点头。攻击 +20，防御 +20，生命 +800。', remove: true },
+          { label: '交出 100 经验', can: () => player.exp >= 100, apply: () => { player.exp -= 100; player.atk += 20; player.def += 20; player.hp += 640; }, log: '智者点头。攻击 +20，防御 +20，生命 +640。', remove: true },
           leave
         ]
       };
     }
     if (fi === 28) {
+      const left = player.potions['8'];
       return {
         title: '公主',
-        text: '魔王就在楼上。我能把剩下的力量给你：攻击 +36，防御 +24，生命 +1200。',
+        text: '背包里还有 ' + left + ' 瓶圣水。喝一瓶，生命 +1400，图鉴里的伤害不变。炼一瓶，攻击 +250，伤害会少很多。先上楼点一下魔王，算完再回来。我一直在。',
         choices: [
-          { label: '接受祝福', apply: () => { player.atk += 36; player.def += 24; player.hp += 1200; }, log: '祝福落下来。攻击 +36，防御 +24，生命 +1200。', remove: true },
+          {
+            label: '炼一瓶圣水，攻击 +250',
+            can: () => player.potions['8'] > 0,
+            apply: () => {
+              player.potions['8']--;
+              player.atk += 250;
+              log('圣水炼进剑里，攻击 +250。还剩 ' + player.potions['8'] + ' 瓶。', 'good');
+            },
+            remove: false
+          },
+          {
+            label: '喝一瓶圣水，生命 +1400',
+            can: () => player.potions['8'] > 0,
+            apply: () => {
+              player.potions['8']--;
+              player.hp += 1400;
+              log('喝下圣水，生命 +1400。还剩 ' + player.potions['8'] + ' 瓶，喝掉的已经炼不了了。', 'good');
+            },
+            remove: false
+          },
           leave
         ]
       };
@@ -790,9 +847,11 @@
         row.appendChild(meta);
         list.appendChild(row);
       });
+      const potLeft = player.potions.p + player.potions.P + player.potions['8'];
+      const potNote = potLeft ? '背包里的药水还没喝，不算进生命。' : '';
       document.getElementById('bookSub').textContent = blocked
-        ? '有怪物按现在的属性还打不过。变强之后再打开，数字会重算。'
-        : '按当前属性全清，大约损失 ' + sum + ' 点生命。先捡宝石会更少。';
+        ? '有怪物按现在的属性还打不过。变强之后再打开，数字会重算。' + potNote
+        : '按当前属性全清，大约损失 ' + sum + ' 点生命。先捡宝石会更少。' + potNote;
     }
     document.getElementById('bookSheet').classList.remove('hidden');
   }
@@ -811,7 +870,8 @@
     else if (ITEMS[ch]) {
       const it = ITEMS[ch];
       const bits = [];
-      if (it.hp) bits.push('生命 +' + it.hp);
+      if (POTION_KEYS[ch]) bits.push('收进背包，生命 +' + it.hp + '，不会马上喝');
+      else if (it.hp) bits.push('生命 +' + it.hp);
       if (it.atk) bits.push('攻击 +' + it.atk);
       if (it.def) bits.push('防御 +' + it.def);
       if (it.gold) bits.push('金币 +' + it.gold);
@@ -841,6 +901,9 @@
     defNum.textContent = player.def;
     goldNum.textContent = player.gold;
     expNum.textContent = player.exp;
+    document.getElementById('drinkP').textContent = '红药 ' + player.potions.p;
+    document.getElementById('drinkB').textContent = '蓝药 ' + player.potions.P;
+    document.getElementById('drinkH').textContent = '圣水 ' + player.potions['8'];
     document.getElementById('keyY').textContent = '黄 ×' + player.keys.y;
     document.getElementById('keyQ').textContent = '蓝 ×' + player.keys.q;
     document.getElementById('keyZ').textContent = '红 ×' + player.keys.z;
@@ -855,9 +918,9 @@
     if (!started || ended || !floors) return;
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
-        v: 1,
+        v: 3,
         hp: player.hp, atk: player.atk, def: player.def, gold: player.gold, exp: player.exp,
-        keys: player.keys, fi: player.fi, px: player.px, py: player.py,
+        keys: player.keys, potions: player.potions, fi: player.fi, px: player.px, py: player.py,
         altar: player.altar, shopBuys: player.shopBuys,
         floors: floors.map((row) => row.join(''))
       }));
@@ -867,7 +930,7 @@
   function readSave() {
     try {
       const data = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
-      if (!data || data.v !== 1 || !Array.isArray(data.floors) || data.floors.length !== 30) return null;
+      if (!data || data.v !== 3 || !Array.isArray(data.floors) || data.floors.length !== 30) return null;
       if (!data.floors.every((row) => typeof row === 'string' && row.length === 11)) return null;
       return data;
     } catch (e) { return null; }
@@ -880,6 +943,7 @@
       if (typeof data[k] === 'number') player[k] = data[k];
     });
     if (data.keys) player.keys = { y: data.keys.y || 0, q: data.keys.q || 0, z: data.keys.z || 0 };
+    if (data.potions) player.potions = { p: data.potions.p || 0, P: data.potions.P || 0, '8': data.potions['8'] || 0 };
     if (data.shopBuys) player.shopBuys = { '1': data.shopBuys['1'] || 0, '2': data.shopBuys['2'] || 0, '3': data.shopBuys['3'] || 0 };
     ended = false;
     started = true;
@@ -1316,6 +1380,11 @@
     if (modalOpen()) return;
     const k = e.key.toLowerCase();
     if (k === 'm') { e.preventDefault(); openBook(); return; }
+    if (k === '1' || k === '2' || k === '3') {
+      e.preventDefault();
+      drink(k === '1' ? 'p' : k === '2' ? 'P' : '8');
+      return;
+    }
     const dirs = { arrowup: [0, -1], w: [0, -1], arrowdown: [0, 1], s: [0, 1], arrowleft: [-1, 0], a: [-1, 0], arrowright: [1, 0], d: [1, 0] };
     if (dirs[k]) { e.preventDefault(); move(dirs[k][0], dirs[k][1]); }
   });
@@ -1326,6 +1395,9 @@
       move(d[0], d[1]);
     });
   });
+  document.getElementById('drinkP').addEventListener('click', () => drink('p'));
+  document.getElementById('drinkB').addEventListener('click', () => drink('P'));
+  document.getElementById('drinkH').addEventListener('click', () => drink('8'));
   document.getElementById('bookBtn').addEventListener('click', openBook);
   document.getElementById('bookClose').addEventListener('click', () => document.getElementById('bookSheet').classList.add('hidden'));
   document.getElementById('shopClose').addEventListener('click', () => document.getElementById('shopSheet').classList.add('hidden'));
